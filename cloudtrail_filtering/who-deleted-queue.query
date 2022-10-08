@@ -1,0 +1,5 @@
+fields @timestamp, requestParameters.queueUrl, userIdentity.arn, userIdentity.userName
+| sort @timestamp desc
+| filter eventSource = 'sqs.amazonaws.com'
+| filter eventName = 'DeleteQueue'
+| limit 20

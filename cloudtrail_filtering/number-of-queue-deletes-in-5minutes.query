@@ -1,0 +1,3 @@
+filter eventSource = 'sqs.amazonaws.com'
+| filter eventName = 'DeleteQueue'
+| stats count(*) by bin(5m)

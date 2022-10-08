@@ -19,6 +19,16 @@ resource "aws_s3_bucket_acl" "demo-bucket-acl" {
   acl = "private"
 }
 
+resource "aws_s3_bucket" "athena-output-bucket" {
+  bucket = "athena-output-${local.region}-${local.account-id}"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_acl" "athena-output-acl" {
+  bucket = aws_s3_bucket.athena-output-bucket.id
+  acl = "private"
+}
+
 resource "aws_cloudwatch_log_group" "trail-log-group" {
   name_prefix = "demo-trail-log-group"
 }
@@ -102,4 +112,36 @@ resource "aws_cloudwatch_query_definition" "number-of-queue-deletes-in-5minutes"
   name = "number-of-queue-deletes-in-5minutes"
   log_group_names = [aws_cloudwatch_log_group.trail-log-group.name]
   query_string = file("${path.module}/number-of-queue-deletes-in-5minutes.query")
+}
+
+resource "aws_athena_workgroup" "trail-workgroup" {
+  name = "trail_workgroup"
+  configuration {
+    result_configuration {
+      output_location = "s3://${aws_s3_bucket.athena-output-bucket.id}"
+    }
+  }
+  force_destroy = true
+}
+
+resource "aws_athena_database" "trail-database" {
+  name = "trail_database"
+  bucket = aws_s3_bucket.demo-bucket.id
+  force_destroy = true
+}
+
+resource "aws_athena_named_query" "create-demo-trail-table" {
+  database = aws_athena_database.trail-database.id
+  workgroup = aws_athena_workgroup.trail-workgroup.id
+  name = "create-demo-trail-table"
+  query = templatefile("${path.module}/create-demo-trail-table.sql.tmpl", {
+    location: "s3://${aws_s3_bucket.demo-bucket.bucket}/AWSLogs/${local.account-id}/CloudTrail/eu-west-1"
+  })
+}
+
+resource "aws_athena_named_query" "select-sqs-events" {
+  database = aws_athena_database.trail-database.id
+  workgroup = aws_athena_workgroup.trail-workgroup.id
+  name = "select-sqs-events"
+  query = file("${path.module}/select-sqs-events.sql")
 }

@@ -1,3 +1,13 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = ">= 2.7.0"
+      configuration_aliases = [aws]
+    }
+  }
+}
+
 data "aws_ami" "amazon-linux-2" {
   owners = ["amazon"]
   most_recent = true

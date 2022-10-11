@@ -1,27 +1,11 @@
 #!/bin/bash
 
 function deploy() {
-  pushd eu-west-1 || exit
   terraform init && terraform apply -auto-approve
-  popd || exit
-  pushd us-east-1 || exit
-  terraform init && terraform apply -auto-approve
-  popd || exit
-  pushd global || exit
-  terraform init && terraform apply -auto-approve
-  popd || exit
 }
 
 function destroy() {
-  pushd global || exit
-  terraform destroy -auto-approve || exit
-  popd || exit
-  pushd eu-west-1 || exit
-  terraform destroy -auto-approve || exit
-  popd || exit
-  pushd us-east-1 || exit
-  terraform destroy -auto-approve || exit
-  popd || exit
+  terraform destroy -auto-approve
 }
 
 function get_hosted_zone_id() {

@@ -1,0 +1,4 @@
+fields @timestamp, @message
+| filter action = 'ACCEPT'
+| sort @timestamp desc
+| limit 20

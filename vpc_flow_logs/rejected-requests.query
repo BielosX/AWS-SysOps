@@ -1,0 +1,4 @@
+fields @timestamp, @message
+| filter action = 'REJECT'
+| sort @timestamp desc
+| limit 20

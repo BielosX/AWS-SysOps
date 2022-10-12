@@ -72,3 +72,7 @@ resource "aws_instance" "demo-instance" {
     Name: "demo-instance"
   }
 }
+
+resource "aws_eip" "instance-eip" {
+  instance = aws_instance.demo-instance.id
+}

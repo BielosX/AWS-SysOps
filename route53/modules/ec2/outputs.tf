@@ -1,3 +1,3 @@
 output "public-ip" {
-  value = aws_instance.demo-instance.public_ip
+  value = aws_eip.instance-eip.public_ip
 }

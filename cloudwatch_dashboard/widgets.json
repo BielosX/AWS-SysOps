@@ -1,0 +1,62 @@
+{
+  "widgets": [
+    {
+      "type": "log",
+      "width": 12,
+      "properties": {
+        "region": "${region}",
+        "title": "Network Interface ${network_interface_id} Rejected",
+        "view": "bar",
+        "query": "source '${network_interface_log_group}' | filter action = 'REJECT' | stats count(*) by bin(5m)"
+      }
+    },
+    {
+      "type": "log",
+      "width": 12,
+      "properties": {
+        "region": "${region}",
+        "title": "VPC ${vpc_id} Rejected",
+        "view": "bar",
+        "query": "source '${vpc_log_group}' | filter action = 'REJECT' | stats count(*) by bin(5m)"
+      }
+    },
+    {
+      "type": "log",
+      "width": 12,
+      "properties": {
+        "region": "${region}",
+        "title": "Subnet ${subnet_id} Rejected",
+        "view": "bar",
+        "query": "source '${subnet_log_group}' | filter action = 'REJECT' | stats count(*) by bin(5m)"
+      }
+    },
+    {
+      "type": "metric",
+      "width": 12,
+      "properties": {
+        "region": "${region}",
+        "title": "Lambda ${lambda_id} Errors",
+        "metrics": [
+          [
+            "${lambda_errors_namespace}",
+            "${lambda_errors_name}"
+          ]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "view": "timeSeries"
+      }
+    },
+    {
+      "type": "alarm",
+      "width": 12,
+      "properties": {
+        "region": "${region}",
+        "title": "Lambda ${lambda_id} Alarms",
+        "alarms": [
+          "${error_logs_too_high_arn}"
+        ]
+      }
+    }
+  ]
+}

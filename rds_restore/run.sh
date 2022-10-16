@@ -65,11 +65,24 @@ function state() {
   terraform state list
 }
 
+function restore_from_latest_snapshot() {
+  cluster_id
+  latest=$(aws rds describe-db-cluster-snapshots --db-cluster-identifier "$db_cluster_id" \
+    | jq -r '.DBClusterSnapshots[0].DBClusterSnapshotIdentifier')
+  python3 restore_cluster.py "$db_cluster_id" "$latest"
+  terraform state rm module.rds.aws_rds_cluster.aurora-postgresql-cluster
+  terraform state rm module.rds.aws_rds_cluster_instance.aurora-postgres-cluster-instance[0]
+  terraform state rm module.rds.aws_rds_cluster_instance.aurora-postgres-cluster-instance[1]
+  terraform import module.rds.aws_rds_cluster.aurora-postgresql-cluster "$db_cluster_id"
+  terraform apply -auto-approve
+}
+
 function help() {
 read -r -d '' HELP_STRING << EOM
 deploy | create_table | destroy |
 create_cluster_snapshot | insert_users |
-fetch_all_users | remove_cluster_snapshots | state
+fetch_all_users | remove_cluster_snapshots |
+state | restore_from_latest_snapshot
 EOM
 echo "$HELP_STRING"
 }
@@ -83,5 +96,6 @@ case "$1" in
   "state") state ;;
   "create_cluster_snapshot") create_cluster_snapshot ;;
   "remove_cluster_snapshots") remove_cluster_snapshots ;;
+  "restore_from_latest_snapshot") restore_from_latest_snapshot ;;
   *) help ;;
 esac

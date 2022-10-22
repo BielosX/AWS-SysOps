@@ -7,6 +7,8 @@ Parameters:
     Type: String
   InstanceType:
     Type: String
+  InstanceName:
+    Type: String
 Resources:
   DemoQueue:
     Type: AWS::SQS::Queue
@@ -20,3 +22,6 @@ Resources:
       ImageId: !Ref Ami
       AvailabilityZone: !Ref InstanceAZ
       InstanceType: !Ref InstanceType
+      Tags:
+        - Key: "Name"
+          Value: !Ref InstanceName

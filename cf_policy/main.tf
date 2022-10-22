@@ -19,18 +19,8 @@ data "aws_availability_zones" "available" {
 
 data "aws_iam_policy_document" "cf-policy" {
   statement {
-    effect = "Deny"
-    actions = ["Update:*"] // Update:Modify, Update:Replace, Update:Delete
-    principals {
-      identifiers = ["*"]
-      type = "*"
-    }
-    resources = ["*"]
-  }
-
-  statement {
     effect = "Allow"
-    actions = ["Update:Modify"]
+    actions = ["Update:Modify"] // Update:Modify, Update:Replace, Update:Delete
     principals {
       identifiers = ["*"]
       type = "*"
@@ -62,6 +52,7 @@ resource "aws_cloudformation_stack" "demo-stack" {
     "Ami": data.aws_ami.amazon-linux-2.image_id
     "InstanceAZ": data.aws_availability_zones.available.names[0]
     "InstanceType": "t3.micro"
+    "InstanceName": "demo-instance"
   }
   policy_body = data.aws_iam_policy_document.cf-policy.json
   on_failure = "DO_NOTHING"

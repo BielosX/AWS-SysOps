@@ -1,0 +1,165 @@
+Parameters:
+  CidrBlock:
+    Type: String
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref CidrBlock
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+  FirstPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Select [0, !Cidr [!Ref CidrBlock, 4, 8]]
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: "Name"
+          Value: "first-public-subnet"
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs
+          Ref: 'AWS::Region'
+  SecondPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Select [1, !Cidr [!Ref CidrBlock, 4, 8]]
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: "Name"
+          Value: "second-public-subnet"
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs
+          Ref: 'AWS::Region'
+  FirstPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Select [2, !Cidr [!Ref CidrBlock, 4, 8]]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: "Name"
+          Value: "first-private-subnet"
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs
+          Ref: 'AWS::Region'
+  SecondPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Select [3, !Cidr [!Ref CidrBlock, 4, 8]]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: "Name"
+          Value: "second-private-subnet"
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs
+          Ref: 'AWS::Region'
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: "Name"
+          Value: "public-route-table"
+  InternetGatewayRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+  FirstPublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref FirstPublicSubnet
+  SecondPublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref SecondPublicSubnet
+  NetworkAcl:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref Vpc
+  AllowHttpIngressEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 100
+      CidrBlock: "0.0.0.0/0"
+      Egress: false
+      Protocol: 6
+      RuleAction: "allow"
+      NetworkAclId: !Ref NetworkAcl
+      PortRange:
+        From: 80
+        To: 80
+  AllowHttpEgressEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 101
+      CidrBlock: "0.0.0.0/0"
+      Egress: true
+      Protocol: 6
+      RuleAction: "allow"
+      NetworkAclId: !Ref NetworkAcl
+      PortRange:
+        From: 80
+        To: 80
+  AllowHttpsIngressEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 102
+      CidrBlock: "0.0.0.0/0"
+      Egress: false
+      Protocol: 6
+      RuleAction: "allow"
+      NetworkAclId: !Ref NetworkAcl
+      PortRange:
+        From: 443
+        To: 443
+  AllowHttpsEgressEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 103
+      CidrBlock: "0.0.0.0/0"
+      Egress: true
+      Protocol: 6
+      RuleAction: "allow"
+      NetworkAclId: !Ref NetworkAcl
+      PortRange:
+        From: 443
+        To: 443
+  FirstPublicSubnetAclAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref NetworkAcl
+      SubnetId: !Ref FirstPublicSubnet
+  SecondPublicSubnetAclAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref NetworkAcl
+      SubnetId: !Ref SecondPublicSubnet
+  FirstPrivateSubnetAclAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref NetworkAcl
+      SubnetId: !Ref FirstPrivateSubnet
+  SecondPrivateSubnetAclAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref NetworkAcl
+      SubnetId: !Ref SecondPrivateSubnet

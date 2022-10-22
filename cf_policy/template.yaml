@@ -1,0 +1,22 @@
+Parameters:
+  QueueName:
+    Type: String
+  Ami:
+    Type: AWS::EC2::Image::Id
+  InstanceAZ:
+    Type: String
+  InstanceType:
+    Type: String
+Resources:
+  DemoQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref QueueName
+      MessageRetentionPeriod: 60
+      ReceiveMessageWaitTimeSeconds: 20
+  DemoInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref Ami
+      AvailabilityZone: !Ref InstanceAZ
+      InstanceType: !Ref InstanceType

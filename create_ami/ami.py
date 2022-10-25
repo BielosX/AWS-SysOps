@@ -110,7 +110,52 @@ class AmiCreator:
             instance.reload()
             state = instance.state['Name']
 
-    def create(self):
+    def create_image(self, instance):
+        image = instance.create_image(
+            Name=self.image_name,
+            NoReboot=self.no_reboot
+        )
+        image_state = image.state
+        while image_state != 'available':
+            print("Image {} not available yet, current state: {}".format(image.image_id, image_state))
+            time.sleep(20.0)
+            image.reload()
+            image_state = image.state
+        print("AMI {} created".format(image.image_id))
+
+    def create_image_from_snapshot(self, instance):
+        instance.stop()
+        state = instance.state['Name']
+        while state != 'stopped':
+            print("Waiting instance {} to stop. Current state: {}".format(instance.id, state))
+            time.sleep(20.0)
+            instance.reload()
+            state = instance.state['Name']
+        root_volume = list(instance.volumes.all())[0]
+        snapshot = root_volume.create_snapshot()
+        state = snapshot.state
+        while state != 'completed':
+            print("Waiting for snapshot {} to become ready. Current state: {}".format(snapshot.id, state))
+            time.sleep(20.0)
+            snapshot.reload()
+            state = snapshot.state
+        root_device_name = '/dev/sda1'
+        image = self.ec2_client.register_image(
+            Name=self.image_name,
+            RootDeviceName=root_device_name,
+            BlockDeviceMappings=[
+                {
+                    'DeviceName': root_device_name,
+                    'Ebs': {
+                        'DeleteOnTermination': True,
+                        'SnapshotId': snapshot.id
+                    }
+                }
+            ]
+        )
+        print("AMI {} created".format(image['ImageId']))
+
+    def create(self, from_snapshot=False):
         key_pair = self.create_key_pair()
         security_group = self.create_security_group()
         instance = self.run_ec2_instance(key_pair.name, security_group.group_id)
@@ -132,17 +177,10 @@ class AmiCreator:
             exit_status = stdout.channel.recv_exit_status()
             print("Exit status: {}".format(exit_status))
             if exit_status == 0:
-                image = instance.create_image(
-                    Name=self.image_name,
-                    NoReboot=self.no_reboot
-                )
-                image_state = image.state
-                while image_state != 'available':
-                    print("Image {} not available yet, current state: {}".format(image.image_id, image_state))
-                    time.sleep(20.0)
-                    image.reload()
-                    image_state = image.state
-
+                if from_snapshot:
+                    self.create_image_from_snapshot(instance)
+                else:
+                    self.create_image(instance)
             else:
                 std_out = stdout.readlines()
                 std_err = stderr.readlines()
@@ -163,16 +201,17 @@ def main():
     parser.add_argument("--instance-type", default="t3.micro")
     parser.add_argument("--script-file")
     parser.add_argument("--root-device-type", default="ebs", choices=["ebs", "instance-store"])
-    parser.add_argument("--no-reboot", default=False)
+    parser.add_argument("--reboot", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--from-snapshot", action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
     creator = AmiCreator(
         image_name=args.image_name,
         root_device_type=args.root_device_type,
         instance_type=args.instance_type,
         script_file=args.script_file,
-        no_reboot=args.no_reboot
+        no_reboot=not args.reboot
     )
-    creator.create()
+    creator.create(args.from_snapshot)
 
 
 if __name__ == "__main__":

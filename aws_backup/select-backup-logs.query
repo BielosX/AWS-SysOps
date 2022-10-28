@@ -1,0 +1,5 @@
+fields @timestamp, @message
+| filter eventSource = "backup.amazonaws.com"
+| filter userAgent = "backup.amazonaws.com"
+| sort @timestamp desc
+| limit 20

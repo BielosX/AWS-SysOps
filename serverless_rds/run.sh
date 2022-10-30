@@ -35,10 +35,50 @@ function migrate() {
   password=$(aws ssm get-parameter \
     --name "aurora-master-password" \
     --with-decryption | jq -r '.Parameter.Value')
+  app_password=$(aws secretsmanager get-secret-value \
+                       --secret-id "app-password" \
+                       | jq -r '.SecretString | fromjson | .password')
+  export FLYWAY_PLACEHOLDERS_APP_PASSWORD="$app_password"
   export FLYWAY_URL="jdbc:postgresql://localhost:5432/postgres"
   export FLYWAY_USER="master"
   export FLYWAY_PASSWORD="$password"
   flyway migrate
+}
+
+function get_all_users() {
+  temp_file=$(mktemp)
+  aws lambda invoke --function-name "demo-lambda" \
+    --payload '{"action": "SELECT"}' \
+    "$temp_file" \
+    --cli-binary-format raw-in-base64-out
+  cat "$temp_file"
+  rm -f "$temp_file"
+}
+
+function insert_user() {
+  temp_file=$(mktemp)
+  aws lambda invoke --function-name "demo-lambda" \
+    --payload '{"action": "INSERT"}' \
+    "$temp_file" \
+    --cli-binary-format raw-in-base64-out
+  cat "$temp_file"
+  rm -f "$temp_file"
+}
+
+function package() {
+  rm -f lambda.zip
+  zip -j lambda.zip src/main.py
+  wget -O "certificate.pem" https://www.amazontrust.com/repository/AmazonRootCA1.pem
+  zip -u lambda.zip certificate.pem
+  rm certificate.pem
+  mkdir target
+  pushd target || exit
+  pip3 download pg8000
+  unzip -- \*.whl
+  rm -- *.whl
+  zip -u -r ../lambda.zip -- *
+  popd || exit
+  rm target -r
 }
 
 case "$1" in
@@ -46,4 +86,7 @@ case "$1" in
   "destroy") destroy ;;
   "create-tunnel") create_tunnel ;;
   "migrate") migrate ;;
+  "get-all-users") get_all_users ;;
+  "insert-user") insert_user ;;
+  "package") package ;;
 esac

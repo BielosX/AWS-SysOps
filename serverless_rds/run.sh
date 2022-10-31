@@ -24,6 +24,10 @@ function create_tunnel() {
       --availability-zone "$availability_zone" \
       --instance-os-user ec2-user \
       --ssh-public-key file://temp-key.pub
+}
+
+function create_db_tunnel() {
+  create_tunnel
   cluster_endpoint=$(aws rds describe-db-clusters \
     --db-cluster-identifier aurora-cluster | jq -r '.DBClusters[0].Endpoint')
   ssh -y -o "IdentitiesOnly=yes" -i temp-key "ec2-user@${public_ip}" -L "5432:${cluster_endpoint}:5432"
@@ -31,34 +35,58 @@ function create_tunnel() {
   rm -f temp-key.pub
 }
 
+function create_proxy_tunnel() {
+  create_tunnel
+  proxy_endpoint=$(aws rds describe-db-proxies --db-proxy-name aurora-proxy | jq -r '.DBProxies[0].Endpoint')
+  ssh -y -o "IdentitiesOnly=yes" -i temp-key "ec2-user@${public_ip}" -L "5432:${proxy_endpoint}:5432"
+  rm -f temp-key
+  rm -f temp-key.pub
+}
+
+function get_proxy_token() {
+  proxy_endpoint=$(aws rds describe-db-proxies --db-proxy-name aurora-proxy | jq -r '.DBProxies[0].Endpoint')
+  aws rds generate-db-auth-token --hostname "$proxy_endpoint" --port 5432 --username "proxy_user"
+}
+
 function migrate() {
   password=$(aws ssm get-parameter \
     --name "aurora-master-password" \
     --with-decryption | jq -r '.Parameter.Value')
-  app_password=$(aws secretsmanager get-secret-value \
-                       --secret-id "app-password" \
+  proxy_password=$(aws secretsmanager get-secret-value \
+                       --secret-id "proxy-password" \
                        | jq -r '.SecretString | fromjson | .password')
-  export FLYWAY_PLACEHOLDERS_APP_PASSWORD="$app_password"
+  export FLYWAY_PLACEHOLDERS_PROXY_PASSWORD="$proxy_password"
   export FLYWAY_URL="jdbc:postgresql://localhost:5432/postgres"
   export FLYWAY_USER="master"
   export FLYWAY_PASSWORD="$password"
   flyway migrate
 }
 
+
 function get_all_users() {
-  temp_file=$(mktemp)
-  aws lambda invoke --function-name "demo-lambda" \
-    --payload '{"action": "SELECT"}' \
-    "$temp_file" \
-    --cli-binary-format raw-in-base64-out
-  cat "$temp_file"
-  rm -f "$temp_file"
+  lambda_payload='{"action": "SELECT", "db": "AURORA"}'
+  run_lambda
 }
 
 function insert_user() {
+  lambda_payload='{"action": "INSERT", "db": "AURORA"}'
+  run_lambda
+}
+
+function get_all_users_proxy() {
+  lambda_payload='{"action": "SELECT", "db": "PROXY"}'
+  run_lambda
+}
+
+function insert_user_proxy() {
+  lambda_payload='{"action": "INSERT", "db": "PROXY"}'
+  run_lambda
+}
+
+function run_lambda() {
   temp_file=$(mktemp)
   aws lambda invoke --function-name "demo-lambda" \
-    --payload '{"action": "INSERT"}' \
+    --payload "$lambda_payload" \
     "$temp_file" \
     --cli-binary-format raw-in-base64-out
   cat "$temp_file"
@@ -68,8 +96,10 @@ function insert_user() {
 function package() {
   rm -f lambda.zip
   zip -j lambda.zip src/main.py
-  wget -O "certificate.pem" https://www.amazontrust.com/repository/AmazonRootCA1.pem
-  zip -u lambda.zip certificate.pem
+  wget -O "proxy_certificate.pem" https://www.amazontrust.com/repository/AmazonRootCA1.pem
+  wget -O "db_certificate.pem" https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+  zip -u lambda.zip proxy_certificate.pem
+  zip -u lambda.zip db_certificate.pem
   rm certificate.pem
   mkdir target
   pushd target || exit
@@ -84,9 +114,13 @@ function package() {
 case "$1" in
   "deploy") deploy ;;
   "destroy") destroy ;;
-  "create-tunnel") create_tunnel ;;
+  "create-db-tunnel") create_db_tunnel ;;
+  "create-proxy-tunnel") create_proxy_tunnel ;;
+  "proxy-token") get_proxy_token ;;
   "migrate") migrate ;;
   "get-all-users") get_all_users ;;
   "insert-user") insert_user ;;
+  "get-all-users-proxy") get_all_users_proxy ;;
+  "insert-user-proxy") insert_user_proxy ;;
   "package") package ;;
 esac

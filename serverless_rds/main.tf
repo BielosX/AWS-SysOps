@@ -49,6 +49,32 @@ resource "aws_subnet" "private-subnets" {
   }
 }
 
+resource "aws_eip" "eip" {
+  vpc = true
+}
+
+resource "aws_nat_gateway" "nat-gateway" {
+  subnet_id = aws_subnet.public-subnets[0].id
+  allocation_id = aws_eip.eip.id
+}
+
+resource "aws_route_table" "private-route-table" {
+  vpc_id = aws_vpc.demo-vpc.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat-gateway.id
+  }
+  tags = {
+    Name: "private-route-table"
+  }
+}
+
+resource "aws_route_table_association" "private-route-table-association" {
+  count = 2
+  route_table_id = aws_route_table.private-route-table.id
+  subnet_id = aws_subnet.private-subnets[count.index].id
+}
+
 resource "aws_internet_gateway" "internet-gateway" {
   vpc_id = aws_vpc.demo-vpc.id
 }
@@ -99,7 +125,10 @@ resource "aws_security_group" "jump-box-security-group" {
     to_port = 22
   }
   egress {
-    security_groups = [aws_security_group.aurora-cluster-security-group.id]
+    security_groups = [
+      aws_security_group.aurora-cluster-security-group.id,
+      aws_security_group.proxy-security-group.id
+    ]
     protocol = "tcp"
     from_port = local.db-port
     to_port = local.db-port
@@ -117,7 +146,7 @@ resource "aws_rds_cluster" "aurora-cluster" {
   engine = "aurora-postgresql"
   engine_mode = "provisioned"
   database_name = "postgres"
-  engine_version = "13.7"
+  engine_version = "13.7" // Version 14.x not supported by RDS Proxy (yet)
   apply_immediately = true
   skip_final_snapshot = true
   master_password = aws_ssm_parameter.aurora-master-password.value
@@ -197,9 +226,9 @@ and authorize RDS Proxy to retrieve the credentials from Secrets Manager.
 The IAM authentication applies to the connection between your client program and the proxy.
 The proxy then authenticates to the database using the user name and password credentials retrieved from Secrets Manager.
 */
-resource "aws_secretsmanager_secret" "app-password-secret" {
+resource "aws_secretsmanager_secret" "proxy-password-secret" {
   recovery_window_in_days = 0
-  name = "app-password"
+  name = "proxy-password"
 }
 
 resource "random_password" "app-password" {
@@ -211,49 +240,11 @@ resource "random_password" "app-password" {
 }
 
 resource "aws_secretsmanager_secret_version" "app-password-version" {
-  secret_id = aws_secretsmanager_secret.app-password-secret.id
+  secret_id = aws_secretsmanager_secret.proxy-password-secret.id
   secret_string = jsonencode({
-    username: "app_user",
+    username: "proxy_user",
     password: random_password.app-password.result
   })
-}
-
-data "aws_iam_policy_document" "lambda-assume-role" {
-  version = "2012-10-17"
-  statement {
-    effect = "Allow"
-    actions = ["sts:AssumeRole"]
-    principals {
-      identifiers = ["lambda.amazonaws.com"]
-      type        = "Service"
-    }
-  }
-}
-
-locals {
-  cluster-resource-id = aws_rds_cluster.aurora-cluster.cluster_resource_id
-  account-id = data.aws_caller_identity.current.account_id
-  region = data.aws_region.current.name
-}
-
-data "aws_iam_policy_document" "db-connect" {
-  version = "2012-10-17"
-  statement {
-    effect = "Allow"
-    actions = ["rds-db:connect"]
-    resources = ["arn:aws:rds-db:${local.region}:${local.account-id}:dbuser:${local.cluster-resource-id}/app_user"]
-  }
-}
-
-resource "aws_iam_role" "lambda-role" {
-  assume_role_policy = data.aws_iam_policy_document.lambda-assume-role.json
-  inline_policy {
-    name = "db-connect"
-    policy = data.aws_iam_policy_document.db-connect.json
-  }
-  managed_policy_arns = [
-    "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
-  ]
 }
 
 resource "aws_security_group" "lambda-security-group" {
@@ -275,7 +266,7 @@ resource "aws_security_group" "lambda-security-group" {
 resource "aws_security_group" "proxy-security-group" {
   vpc_id = aws_vpc.demo-vpc.id
   ingress {
-    security_groups = [aws_security_group.lambda-security-group.id]
+    cidr_blocks = ["0.0.0.0/0"]
     protocol  = "tcp"
     from_port = local.db-port
     to_port = local.db-port
@@ -285,6 +276,12 @@ resource "aws_security_group" "proxy-security-group" {
     protocol = "tcp"
     from_port = local.db-port
     to_port  = local.db-port
+  }
+  egress {
+    cidr_blocks = ["0.0.0.0/0"]
+    protocol = "tcp"
+    from_port = 443
+    to_port = 443
   }
 }
 
@@ -305,12 +302,17 @@ data "aws_iam_policy_document" "proxy-policy" {
   statement {
     effect = "Allow"
     actions = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.app-password-secret.arn]
+    resources = [aws_secretsmanager_secret.proxy-password-secret.arn]
   }
   statement {
     effect = "Allow"
     actions = ["kms:Decrypt"]
-    resources = ["*"]
+    resources = ["arn:aws:kms:${local.region}:${local.account-id}:key/*"]
+    condition {
+      test = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["secretsmanager.${local.region}.amazonaws.com"]
+    }
   }
 }
 
@@ -332,7 +334,7 @@ resource "aws_db_proxy" "db-proxy" {
   auth {
     auth_scheme = "SECRETS"
     iam_auth = "REQUIRED"
-    secret_arn = aws_secretsmanager_secret.app-password-secret.arn
+    secret_arn = aws_secretsmanager_secret.proxy-password-secret.arn
   }
 }
 
@@ -352,6 +354,49 @@ resource "aws_db_proxy_target" "proxy-aurora-target" {
   db_cluster_identifier = aws_rds_cluster.aurora-cluster.id
 }
 
+data "aws_iam_policy_document" "lambda-assume-role" {
+  version = "2012-10-17"
+  statement {
+    effect = "Allow"
+    actions = ["sts:AssumeRole"]
+    principals {
+      identifiers = ["arn:aws:iam::${local.account-id}:root"]
+      type = "AWS"
+    }
+  }
+}
+
+locals {
+  cluster-resource-id = aws_rds_cluster.aurora-cluster.cluster_resource_id
+  account-id = data.aws_caller_identity.current.account_id
+  region = data.aws_region.current.name
+  proxy-id = aws_db_proxy.db-proxy.id
+}
+
+data "aws_iam_policy_document" "lambda-role-policy" {
+  version = "2012-10-17"
+  statement {
+    effect = "Allow"
+    actions = ["rds-db:connect"]
+    resources = [
+      "arn:aws:rds-db:${local.region}:${local.account-id}:dbuser:${local.cluster-resource-id}/app_user",
+      "arn:aws:rds-db:${local.region}:${local.account-id}:dbuser:${local.proxy-id}/proxy_user",
+    ]
+  }
+}
+
+resource "aws_iam_role" "lambda-role" {
+  name = "demo-lambda-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda-assume-role.json
+  inline_policy {
+    name = "lambda-role-policy"
+    policy = data.aws_iam_policy_document.lambda-role-policy.json
+  }
+  managed_policy_arns = [
+    "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+  ]
+}
+
 resource "aws_lambda_function" "demo-lambda" {
   function_name = "demo-lambda"
   runtime = "python3.9"
@@ -359,14 +404,18 @@ resource "aws_lambda_function" "demo-lambda" {
   role = aws_iam_role.lambda-role.arn
   filename = "${path.module}/lambda.zip"
   source_code_hash = filebase64sha256("${path.module}/lambda.zip")
+  timeout = 30
   vpc_config {
     security_group_ids = [aws_security_group.lambda-security-group.id]
-    subnet_ids = aws_subnet.public-subnets[*].id
+    // Connecting a function to a public subnet doesn't give it internet access or a public IP address.
+    subnet_ids = aws_subnet.private-subnets[*].id
   }
   environment {
     variables = {
-      DB_ENDPOINT = aws_db_proxy.db-proxy.endpoint
+      DB_ENDPOINT = aws_rds_cluster.aurora-cluster.endpoint
+      PROXY_ENDPOINT = aws_db_proxy.db-proxy.endpoint
       REGION = local.region
+      DB_PORT = local.db-port
     }
   }
 }

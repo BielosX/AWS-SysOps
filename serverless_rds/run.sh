@@ -95,19 +95,15 @@ function run_lambda() {
 
 function package() {
   rm -f lambda.zip
-  zip -j lambda.zip src/main.py
+  zip -j lambda.zip lambda/index.js
+  zip -j -u lambda.zip lambda/package.json
+  pushd lambda || exit
+  zip -r ../lambda.zip node_modules
+  popd || exit
   wget -O "proxy_certificate.pem" https://www.amazontrust.com/repository/AmazonRootCA1.pem
   wget -O "db_certificate.pem" https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
   zip -u lambda.zip proxy_certificate.pem
   zip -u lambda.zip db_certificate.pem
-  mkdir target
-  pushd target || exit
-  pip3 download pg8000
-  unzip -- \*.whl
-  rm -- *.whl
-  zip -u -r ../lambda.zip -- *
-  popd || exit
-  rm -r target
 }
 
 function assume_lambda_role() {

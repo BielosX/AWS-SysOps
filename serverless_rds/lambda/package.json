@@ -1,0 +1,11 @@
+{
+  "name": "lambda",
+  "type": "module",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/rds-signer": "^3.199.0",
+    "pg": "^8.8.0"
+  }
+}

@@ -378,7 +378,6 @@ locals {
   cluster-resource-id = aws_rds_cluster.aurora-cluster.cluster_resource_id
   account-id = data.aws_caller_identity.current.account_id
   region = data.aws_region.current.name
-  proxy-id = aws_db_proxy.db-proxy.id
 }
 
 data "aws_iam_policy_document" "lambda-role-policy" {
@@ -386,10 +385,7 @@ data "aws_iam_policy_document" "lambda-role-policy" {
   statement {
     effect = "Allow"
     actions = ["rds-db:connect"]
-    resources = [
-      "arn:aws:rds-db:${local.region}:${local.account-id}:dbuser:${local.cluster-resource-id}/app_user",
-      "arn:aws:rds-db:${local.region}:${local.account-id}:dbuser:${local.proxy-id}/proxy_user",
-    ]
+    resources = ["*"]
   }
 }
 
@@ -407,12 +403,12 @@ resource "aws_iam_role" "lambda-role" {
 
 resource "aws_lambda_function" "demo-lambda" {
   function_name = "demo-lambda"
-  runtime = "python3.9"
-  handler = "main.handle"
+  runtime = "nodejs16.x"
+  handler = "index.handler"
   role = aws_iam_role.lambda-role.arn
   filename = "${path.module}/lambda.zip"
   source_code_hash = filebase64sha256("${path.module}/lambda.zip")
-  timeout = 30
+  timeout = 60
   vpc_config {
     security_group_ids = [aws_security_group.lambda-security-group.id]
     // Connecting a function to a public subnet doesn't give it internet access or a public IP address.
@@ -422,7 +418,6 @@ resource "aws_lambda_function" "demo-lambda" {
     variables = {
       DB_ENDPOINT = aws_rds_cluster.aurora-cluster.endpoint
       PROXY_ENDPOINT = aws_db_proxy.db-proxy.endpoint
-      REGION = local.region
       DB_PORT = local.db-port
     }
   }

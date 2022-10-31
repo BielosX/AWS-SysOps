@@ -100,7 +100,6 @@ function package() {
   wget -O "db_certificate.pem" https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
   zip -u lambda.zip proxy_certificate.pem
   zip -u lambda.zip db_certificate.pem
-  rm certificate.pem
   mkdir target
   pushd target || exit
   pip3 download pg8000
@@ -108,7 +107,18 @@ function package() {
   rm -- *.whl
   zip -u -r ../lambda.zip -- *
   popd || exit
-  rm target -r
+  rm -r target
+}
+
+function assume_lambda_role() {
+  role_arn=$(aws iam get-role --role-name "demo-lambda-role" | jq -r '.Role.Arn')
+  credentials=$(aws sts assume-role --role-arn "$role_arn" --role-session-name "demo-lambda-role")
+  access_key=$(jq -r '.AccessKeyId' <<< "$credentials")
+  secret_key=$(jq -r '.SecretAccessKey' <<< "$credentials")
+  session_token=$(jq -r '.SessionToken' <<< "$credentials")
+  export AWS_ACCESS_KEY_ID="$access_key"
+  export AWS_SECRET_ACCESS_KEY="$secret_key"
+  export AWS_SESSION_TOKEN="$session_token"
 }
 
 case "$1" in
@@ -122,5 +132,6 @@ case "$1" in
   "insert-user") insert_user ;;
   "get-all-users-proxy") get_all_users_proxy ;;
   "insert-user-proxy") insert_user_proxy ;;
+  "assume-lambda-role") assume_lambda_role ;;
   "package") package ;;
 esac

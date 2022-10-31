@@ -364,6 +364,14 @@ data "aws_iam_policy_document" "lambda-assume-role" {
       type = "AWS"
     }
   }
+  statement {
+    effect = "Allow"
+    actions = ["sts:AssumeRole"]
+    principals {
+      identifiers = ["lambda.amazonaws.com"]
+      type = "Service"
+    }
+  }
 }
 
 locals {

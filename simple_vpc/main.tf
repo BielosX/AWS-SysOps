@@ -32,14 +32,21 @@ resource "aws_internet_gateway" "internet-gateway" {
 resource "aws_route_table" "public-route-table" {
   vpc_id = aws_vpc.vpc.id
 
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.internet-gateway.id
-  }
-
   tags = {
     Name: "${var.name-prefix}-public-route-table"
   }
+}
+
+/*
+Terraform currently provides both a standalone Route resource and a Route Table resource with routes defined in-line.
+At this time you cannot use a Route Table with in-line routes in conjunction with any Route resources.
+Doing so will cause a conflict of rule settings and will overwrite rules.
+*/
+
+resource "aws_route" "internet-gateway-route" {
+  route_table_id = aws_route_table.public-route-table.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id = aws_internet_gateway.internet-gateway.id
 }
 
 resource "aws_route_table_association" "public-subnet-route-table-association" {
@@ -74,14 +81,15 @@ resource "aws_nat_gateway" "nat-gateway" {
 resource "aws_route_table" "private-route-table" {
   vpc_id = aws_vpc.vpc.id
 
-  route {
-    cidr_block = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat-gateway.id
-  }
-
   tags = {
     Name: "${var.name-prefix}-private-route-table"
   }
+}
+
+resource "aws_route" "nat-gateway-route" {
+  route_table_id = aws_route_table.private-route-table.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id = aws_nat_gateway.nat-gateway.id
 }
 
 resource "aws_route_table_association" "private-subnet-route-table-association" {

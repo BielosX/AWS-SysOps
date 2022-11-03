@@ -99,6 +99,9 @@ resource "aws_instance" "demo-instance" {
   vpc_security_group_ids = [aws_security_group.instance-sg.id]
   iam_instance_profile = aws_iam_instance_profile.instance-profile.id
   user_data = file("${path.module}/init.sh")
+  tags = {
+    Name: "demo-instance"
+  }
 }
 
 resource "aws_eip" "demo-instance-eip" {
@@ -213,18 +216,6 @@ resource "aws_security_group" "jump-box-sg" {
     protocol = "tcp"
     from_port = 443
     to_port = 443
-  }
-  egress {
-    cidr_blocks = ["0.0.0.0/0"]
-    protocol = "tcp"
-    from_port = 53
-    to_port = 53
-  }
-  egress {
-    cidr_blocks = ["0.0.0.0/0"]
-    protocol = "udp"
-    from_port = 53
-    to_port = 53
   }
 }
 

@@ -163,16 +163,20 @@ resource "aws_route53_resolver_endpoint" "outbound-endpoint" {
   }
 }
 
+locals {
+  inbound-endpoint-ips = tolist(aws_route53_resolver_endpoint.inbound-endpoint.ip_address)[*].ip
+}
+
 resource "aws_route53_resolver_rule" "outbound-rule" {
   domain_name = "www.demo.bielosx.com"
   rule_type = "FORWARD"
   resolver_endpoint_id = aws_route53_resolver_endpoint.outbound-endpoint.id
 
   target_ip {
-    ip = tolist(aws_route53_resolver_endpoint.inbound-endpoint.ip_address)[0].ip
+    ip = local.inbound-endpoint-ips[0]
   }
   target_ip {
-    ip = tolist(aws_route53_resolver_endpoint.inbound-endpoint.ip_address)[1].ip
+    ip = local.inbound-endpoint-ips[1]
   }
 }
 

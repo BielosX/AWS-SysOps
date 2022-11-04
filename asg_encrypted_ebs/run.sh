@@ -15,7 +15,7 @@ function deploy() {
 }
 
 function destroy() {
-  npm run cdk destroy
+  yes | npm run cdk destroy
 }
 
 case "$1" in

@@ -1,0 +1,11 @@
+schemaVersion: '2.2'
+parameters:
+  TargetIp:
+    type: "String"
+mainSteps:
+  - action: "aws:runShellScript"
+    name: "curlTarget"
+    inputs:
+      timeoutSeconds: '60'
+      runCommand:
+        - curl "http://{{TargetIp}}"

@@ -10,6 +10,7 @@ locals {
 
 resource "aws_s3_bucket" "demo-bucket" {
   bucket = "demo-bucket-${local.region}-${local.account-id}"
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_acl" "demo-bucket-acl" {

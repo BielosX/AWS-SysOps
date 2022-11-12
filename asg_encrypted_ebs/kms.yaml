@@ -1,0 +1,34 @@
+Resources:
+  AsgServiceLinkedRole:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: "autoscaling.amazonaws.com"
+      CustomSuffix: "EncryptedEbs"
+  EbsKey:
+    DependsOn: [AsgServiceLinkedRole]
+    Type: AWS::KMS::Key
+    Properties:
+      Enabled: true
+      KeySpec: "SYMMETRIC_DEFAULT"
+      KeyUsage: "ENCRYPT_DECRYPT"
+      PendingWindowInDays: 7
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Sid: "Allow Admin"
+            Effect: "Allow"
+            Action: "kms:*"
+            Resource: "*"
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          - Sid: "Allow ASG"
+            Effect: "Allow"
+            Action: "kms:*"
+            Resource: "*"
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling_EncryptedEbs"
+  EbsKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: "alias/demo-ebs-key"
+      TargetKeyId: !Ref EbsKey

@@ -1,16 +1,15 @@
 import * as cdk from 'aws-cdk-lib';
 import {aws_elasticloadbalancingv2, Duration} from 'aws-cdk-lib';
 import {Construct} from "constructs";
-import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {IVpc} from "aws-cdk-lib/aws-ec2";
 import {ApplicationProtocol, TargetType} from "aws-cdk-lib/aws-elasticloadbalancingv2";
 
 export interface LoadBalancerProps {
-    asg: AutoScalingGroup;
     vpc: IVpc;
 }
 
 export class LoadBalancer extends cdk.NestedStack {
+    public readonly targetGroupArn: string;
     constructor(scope: Construct,
                 id: string,
                 lbProps: LoadBalancerProps,
@@ -33,7 +32,6 @@ export class LoadBalancer extends cdk.NestedStack {
             port: 80,
             protocol: ApplicationProtocol.HTTP,
             vpc: lbProps.vpc,
-            targets: [lbProps.asg],
             healthCheck: {
                 path: '/index.html',
                 healthyThresholdCount: 2,
@@ -43,6 +41,8 @@ export class LoadBalancer extends cdk.NestedStack {
                 healthyHttpCodes: '200'
             }
         });
+
+        this.targetGroupArn = targetGroup.targetGroupArn;
 
         listener.addTargetGroups('alb-target-group', {
             targetGroups: [targetGroup]

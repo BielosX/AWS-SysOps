@@ -1,8 +1,0 @@
-{
-  "availability-zones:account=919433600516:region=eu-west-1": [
-    "eu-west-1a",
-    "eu-west-1b",
-    "eu-west-1c"
-  ],
-  "ami:account=919433600516:filters.image-type.0=machine:filters.name.0=amzn2-ami-hvm-*-x86_64-gp2:filters.state.0=available:owners.0=amazon:region=eu-west-1": "ami-0dcc20d3a15abf9bb"
-}

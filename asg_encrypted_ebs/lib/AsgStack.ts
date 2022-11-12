@@ -1,17 +1,15 @@
 import * as cdk from 'aws-cdk-lib';
-import {aws_autoscaling, aws_ec2, aws_iam, Tags} from 'aws-cdk-lib';
+import {aws_autoscaling, aws_ec2, aws_iam} from 'aws-cdk-lib';
 import {Construct} from 'constructs';
-import {InstanceClass, InstanceSize, InstanceType, IVpc, Peer, Port, SubnetType} from "aws-cdk-lib/aws-ec2";
-import * as fs from "fs";
-import * as path from "path";
-import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
+import {InstanceClass, InstanceSize, InstanceType, IVpc, Peer, Port} from "aws-cdk-lib/aws-ec2";
 
 export interface AsgStackProps {
     vpc: IVpc;
+    albTargetGroupArn: string;
 }
 
 export class AsgStack extends cdk.NestedStack {
-    public readonly asg: AutoScalingGroup;
+    public readonly asgName: string;
 
     constructor(scope: Construct, id: string, asgProps: AsgStackProps, props?: cdk.StackProps) {
         super(scope, id, props);
@@ -25,28 +23,41 @@ export class AsgStack extends cdk.NestedStack {
             assumedBy: new aws_iam.ServicePrincipal('ec2.amazonaws.com')
         });
 
-        const userData = fs.readFileSync(path.resolve(__dirname, 'init.sh')).toString();
-
         const launchTemplate = new aws_ec2.LaunchTemplate(this, 'launch-template', {
             machineImage: aws_ec2.MachineImage.lookup({
-                name: 'amzn2-ami-hvm-*-x86_64-gp2',
-                owners: ['amazon']
+                name: 'encrypted-demo-app-image-*'
             }),
             securityGroup,
             instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.NANO),
-            role: ec2Role,
-            userData: aws_ec2.UserData.custom(userData)
+            role: ec2Role
         });
 
-        this.asg = new aws_autoscaling.AutoScalingGroup(this, 'asg', {
-            vpc: asgProps.vpc,
-            minCapacity: 2,
-            maxCapacity: 4,
-            launchTemplate: launchTemplate,
-            vpcSubnets: {
-                subnetType: SubnetType.PRIVATE_WITH_EGRESS
+        const roleArn = `arn:aws:iam::${this.account}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling_EncryptedEbs`;
+        const asg = new aws_autoscaling.CfnAutoScalingGroup(this, 'autoscaling-group', {
+            minSize: '2',
+            maxSize: '4',
+            launchTemplate: {
+                launchTemplateId: launchTemplate.launchTemplateId,
+                version: launchTemplate.versionNumber
             },
+            vpcZoneIdentifier: asgProps.vpc.privateSubnets.map(subnet => subnet.subnetId),
+            serviceLinkedRoleArn: roleArn,
+            targetGroupArns: [asgProps.albTargetGroupArn],
+            tags: [
+                {
+                    propagateAtLaunch: true,
+                    key: 'Name',
+                    value: 'demo-asg'
+                }
+            ]
         });
-        Tags.of(this.asg).add('Name', 'demo-asg');
+        asg.cfnOptions.updatePolicy = {
+            autoScalingRollingUpdate: {
+                maxBatchSize: 1,
+                minInstancesInService: 1,
+                minSuccessfulInstancesPercent: 99
+            }
+        };
+        this.asgName = asg.ref;
     }
 }

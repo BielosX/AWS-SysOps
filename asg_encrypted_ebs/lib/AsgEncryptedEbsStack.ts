@@ -13,13 +13,14 @@ export class AsgEncryptedEbsStack extends cdk.Stack {
       vpcName: 'simple-vpc'
     });
 
-    const asg = new AsgStack(this, 'asg-stack', {
+    const alb = new LoadBalancer(this, 'load-balancer-stack', {
       vpc: vpc.vpc
     });
 
-    const alb = new LoadBalancer(this, 'load-balancer-stack', {
+    const asg = new AsgStack(this, 'asg-stack', {
       vpc: vpc.vpc,
-      asg: asg.asg
+      albTargetGroupArn: alb.targetGroupArn
     });
+
   }
 }

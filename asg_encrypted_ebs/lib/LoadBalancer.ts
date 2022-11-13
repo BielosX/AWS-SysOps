@@ -1,11 +1,12 @@
 import * as cdk from 'aws-cdk-lib';
 import {aws_elasticloadbalancingv2, Duration} from 'aws-cdk-lib';
 import {Construct} from "constructs";
-import {IVpc} from "aws-cdk-lib/aws-ec2";
+import {IVpc, SecurityGroup} from "aws-cdk-lib/aws-ec2";
 import {ApplicationProtocol, TargetType} from "aws-cdk-lib/aws-elasticloadbalancingv2";
 
 export interface LoadBalancerProps {
     vpc: IVpc;
+    albSg: SecurityGroup;
 }
 
 export class LoadBalancer extends cdk.NestedStack {
@@ -18,7 +19,8 @@ export class LoadBalancer extends cdk.NestedStack {
 
         const alb = new aws_elasticloadbalancingv2.ApplicationLoadBalancer(this, 'alb', {
             vpc: lbProps.vpc,
-            internetFacing: true
+            internetFacing: true,
+            securityGroup: lbProps.albSg
         });
 
         const listener = alb.addListener('listener', {

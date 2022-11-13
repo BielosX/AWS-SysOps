@@ -10,7 +10,19 @@ function synth() {
 }
 
 function kms_stack_create() {
-  aws cloudformation deploy --template-file kms.yaml --stack-name "ebs-kms-key"
+  service_role=$(aws iam get-role --role-name AWSServiceRoleForAutoScaling_EncryptedEbs 2> /dev/null)
+  role_arn=""
+  if [ "$service_role" = "" ]; then
+    role_arn=$(aws iam create-service-linked-role \
+      --aws-service-name autoscaling.amazonaws.com \
+      --custom-suffix EncryptedEbs | jq -r '.Role.Arn')
+  else
+    role_arn=$(jq -r '.Role.Arn' <<< "$service_role")
+  fi
+  sleep 20
+  aws cloudformation deploy --template-file kms.yaml \
+    --stack-name "ebs-kms-key" \
+    --parameter-overrides "AsgServiceLinkedRoleArn=${role_arn}"
 }
 
 function kms_stack_destroy() {
@@ -41,22 +53,39 @@ function image() {
   popd || exit
 }
 
-function deploy() {
+function deploy_cdk() {
   npm run build || exit
   npm run cdk bootstrap || exit
   npm run cdk deploy || exit
 }
 
-function destroy() {
+function destroy_cdk() {
   yes | npm run cdk destroy
+}
+
+function deploy() {
+  kms_stack_create
+  if [ "$2" != "skipImage" ]; then
+    image
+  fi
+  deploy_cdk
+}
+
+function destroy() {
+  destroy_cdk
+  remove_images
+  kms_stack_destroy
 }
 
 case "$1" in
   "synth") synth ;;
-  "deploy") deploy ;;
-  "destroy") destroy ;;
+  "deploy-cdk") deploy_cdk ;;
+  "destroy-cdk") destroy_cdk ;;
   "image") image ;;
   "kms-stack-create") kms_stack_create ;;
   "kms-stack-destroy") kms_stack_destroy ;;
   "remove-images") remove_images ;;
+  "deploy") deploy "$@" ;;
+  "destroy") destroy ;;
+  *) ;;
 esac

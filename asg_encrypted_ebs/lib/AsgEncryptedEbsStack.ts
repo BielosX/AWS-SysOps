@@ -3,6 +3,7 @@ import {Construct} from 'constructs';
 import {VpcStack} from "./VpcStack";
 import {AsgStack} from "./AsgStack";
 import {LoadBalancer} from "./LoadBalancer";
+import {SecurityGroupsStack} from "./SecurityGroupsStack";
 
 export class AsgEncryptedEbsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -13,13 +14,19 @@ export class AsgEncryptedEbsStack extends cdk.Stack {
       vpcName: 'simple-vpc'
     });
 
-    const alb = new LoadBalancer(this, 'load-balancer-stack', {
+    const sg = new SecurityGroupsStack(this, 'security-groups-stack', {
       vpc: vpc.vpc
+    });
+
+    const alb = new LoadBalancer(this, 'load-balancer-stack', {
+      vpc: vpc.vpc,
+      albSg: sg.albSecurityGroup
     });
 
     const asg = new AsgStack(this, 'asg-stack', {
       vpc: vpc.vpc,
-      albTargetGroupArn: alb.targetGroupArn
+      albTargetGroupArn: alb.targetGroupArn,
+      instanceSg: sg.instanceSecurityGroup
     });
 
   }

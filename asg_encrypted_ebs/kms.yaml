@@ -1,11 +1,8 @@
+Parameters:
+  AsgServiceLinkedRoleArn:
+    Type: String
 Resources:
-  AsgServiceLinkedRole:
-    Type: AWS::IAM::ServiceLinkedRole
-    Properties:
-      AWSServiceName: "autoscaling.amazonaws.com"
-      CustomSuffix: "EncryptedEbs"
   EbsKey:
-    DependsOn: [AsgServiceLinkedRole]
     Type: AWS::KMS::Key
     Properties:
       Enabled: true
@@ -26,7 +23,7 @@ Resources:
             Action: "kms:*"
             Resource: "*"
             Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling_EncryptedEbs"
+              AWS: !Ref AsgServiceLinkedRoleArn
   EbsKeyAlias:
     Type: AWS::KMS::Alias
     Properties:

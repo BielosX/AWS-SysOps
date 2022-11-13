@@ -1,11 +1,12 @@
 import * as cdk from 'aws-cdk-lib';
 import {aws_autoscaling, aws_ec2, aws_iam} from 'aws-cdk-lib';
 import {Construct} from 'constructs';
-import {InstanceClass, InstanceSize, InstanceType, IVpc, Peer, Port} from "aws-cdk-lib/aws-ec2";
+import {InstanceClass, InstanceSize, InstanceType, IVpc, Peer, Port, SecurityGroup} from "aws-cdk-lib/aws-ec2";
 
 export interface AsgStackProps {
     vpc: IVpc;
     albTargetGroupArn: string;
+    instanceSg: SecurityGroup;
 }
 
 export class AsgStack extends cdk.NestedStack {
@@ -27,7 +28,7 @@ export class AsgStack extends cdk.NestedStack {
             machineImage: aws_ec2.MachineImage.lookup({
                 name: 'encrypted-demo-app-image-*'
             }),
-            securityGroup,
+            securityGroup: asgProps.instanceSg,
             instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.NANO),
             role: ec2Role
         });
@@ -54,8 +55,7 @@ export class AsgStack extends cdk.NestedStack {
         asg.cfnOptions.updatePolicy = {
             autoScalingRollingUpdate: {
                 maxBatchSize: 1,
-                minInstancesInService: 1,
-                minSuccessfulInstancesPercent: 99
+                minInstancesInService: 1
             }
         };
         this.asgName = asg.ref;

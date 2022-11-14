@@ -15,11 +15,6 @@ export class AsgStack extends cdk.NestedStack {
     constructor(scope: Construct, id: string, asgProps: AsgStackProps, props?: cdk.StackProps) {
         super(scope, id, props);
 
-        const securityGroup = new aws_ec2.SecurityGroup(this, 'LaunchTemplateSG', { vpc: asgProps.vpc });
-
-        securityGroup.addIngressRule(Peer.anyIpv4(), Port.tcp(80));
-        securityGroup.addEgressRule(Peer.anyIpv4(), Port.tcp(443));
-
         const ec2Role = new aws_iam.Role(this, 'ec2-role', {
             assumedBy: new aws_iam.ServicePrincipal('ec2.amazonaws.com')
         });

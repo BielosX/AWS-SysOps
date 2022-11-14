@@ -1,7 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import {aws_autoscaling, aws_ec2, aws_iam} from 'aws-cdk-lib';
 import {Construct} from 'constructs';
-import {InstanceClass, InstanceSize, InstanceType, IVpc, Peer, Port, SecurityGroup} from "aws-cdk-lib/aws-ec2";
+import {InstanceClass, InstanceSize, InstanceType, IVpc, SecurityGroup} from "aws-cdk-lib/aws-ec2";
 
 export interface AsgStackProps {
     vpc: IVpc;

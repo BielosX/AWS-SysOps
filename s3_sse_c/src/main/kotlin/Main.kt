@@ -20,6 +20,12 @@ class S3Saver(private val bucket: String, private val table: String) {
     private val dynamoDbClient = DynamoDbClient.builder().build()
     private val keyGenerator = KeyGenerator.getInstance("AES")
 
+    companion object {
+        const val PATH_KEY_NAME = "path"
+        const val KEY_KEY_NAME = "key" // XD
+        const val MD5_KEY_NAME = "md5"
+    }
+
     init {
         keyGenerator.init(256, SecureRandom())
     }
@@ -42,9 +48,9 @@ class S3Saver(private val bucket: String, private val table: String) {
         val putItemRequest = PutItemRequest.builder()
             .tableName(table)
             .item(mapOf(
-                "path" to AttributeValue.fromS(path),
-                "key" to AttributeValue.fromS(encodedKey),
-                "md5" to AttributeValue.fromS(encodedMessageDigest)
+                PATH_KEY_NAME to AttributeValue.fromS(path),
+                KEY_KEY_NAME to AttributeValue.fromS(encodedKey),
+                MD5_KEY_NAME to AttributeValue.fromS(encodedMessageDigest)
             ))
             .build()
         dynamoDbClient.putItem(putItemRequest)
@@ -54,7 +60,7 @@ class S3Saver(private val bucket: String, private val table: String) {
         val getItemRequest = GetItemRequest.builder()
             .tableName(table)
             .key(mapOf(
-                "path" to AttributeValue.fromS(path)
+                PATH_KEY_NAME to AttributeValue.fromS(path)
             ))
             .build()
         val response = dynamoDbClient.getItem(getItemRequest)

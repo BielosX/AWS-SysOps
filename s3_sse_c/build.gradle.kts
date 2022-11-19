@@ -14,6 +14,7 @@ dependencies {
     testImplementation(kotlin("test"))
     implementation("software.amazon.awssdk:s3:2.18.20")
     implementation("software.amazon.awssdk:dynamodb:2.18.20")
+    implementation("software.amazon.awssdk:sso:2.18.20")
     implementation("commons-cli:commons-cli:1.5.0")
 }
 

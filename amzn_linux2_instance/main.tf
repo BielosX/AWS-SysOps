@@ -39,6 +39,7 @@ resource "aws_instance" "demo-instances" {
   vpc_security_group_ids = var.security-group-ids
   subnet_id = var.subnet-id
   user_data = var.user-data
+  monitoring = var.detailed-monitoring
   tags = {
     Name: var.name
   }

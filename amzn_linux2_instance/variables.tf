@@ -21,4 +21,10 @@ variable "name" {
 
 variable "user-data" {
   type = string
+  default = ""
+}
+
+variable "detailed-monitoring" {
+  type = bool
+  default = false
 }

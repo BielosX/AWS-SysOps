@@ -38,10 +38,17 @@ function get_n_random_objects() {
   done
 }
 
+function put_n_random_objects() {
+  for _ in $(seq 1 "$1"); do
+    put_random_object
+  done
+}
+
 case "$1" in
   "deploy") deploy ;;
   "destroy") destroy ;;
   "put-random-object") put_random_object ;;
   "get-random-object") get_random_object ;;
   "get-n-random-objects") get_n_random_objects "$2" ;;
+  "put-n-random-objects") put_n_random_objects "$2" ;;
 esac

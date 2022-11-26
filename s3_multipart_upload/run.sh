@@ -20,7 +20,7 @@ function destroy() {
 function upload() {
   ./gradlew build
   temp_file=$(mktemp)
-  file_size=$(( 60 * 1000 * 1000 ))
+  file_size=$(( 200 * 1024 * 1024 ))
   tr -dc A-Za-z0-9 </dev/urandom | head -c "$file_size" >> "$temp_file"
   java -jar build/libs/s3_multipart_upload-all.jar \
     --bucket "$AWS_BUCKET" \

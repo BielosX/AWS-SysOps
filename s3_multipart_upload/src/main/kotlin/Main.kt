@@ -17,8 +17,8 @@ class S3MultipartUploader {
     private val pool = Executors.newFixedThreadPool(8)
 
     companion object {
-        // One part should be 5MB minimum
-        const val BUFFER_SIZE = 10 * 1000 * 1000
+        // One part should be 5MiB minimum
+        const val BUFFER_SIZE = 5 * 1024 * 1024
     }
 
     fun close() {
@@ -38,6 +38,7 @@ class S3MultipartUploader {
         val completedUploads: ConcurrentLinkedQueue<CompletedPart> = ConcurrentLinkedQueue()
         while (bytes.isNotEmpty()) {
             val number = partNumber
+            val body = bytes.clone()
             val future = pool.submit {
                 val uploadRequest = UploadPartRequest.builder()
                     .bucket(bucket)
@@ -45,7 +46,7 @@ class S3MultipartUploader {
                     .uploadId(multipartResponse.uploadId())
                     .partNumber(number)
                     .build()
-                val response = s3Client.uploadPart(uploadRequest, RequestBody.fromBytes(bytes))
+                val response = s3Client.uploadPart(uploadRequest, RequestBody.fromBytes(body))
                 completedUploads.add(CompletedPart.builder()
                     .partNumber(number)
                     .eTag(response.eTag())
@@ -57,7 +58,7 @@ class S3MultipartUploader {
         }
         var allCompleted = false
         while (!allCompleted) {
-            val completed = futures.map { future -> future.isDone }.count { done -> done }
+            val completed = futures.map(Future<*>::isDone).count { it }
             allCompleted = completed == futures.size
             print('\r')
             print("$completed / ${futures.size} finished")
@@ -72,7 +73,7 @@ class S3MultipartUploader {
             .uploadId(multipartResponse.uploadId())
             .key(bucketKey)
             .multipartUpload(CompletedMultipartUpload.builder()
-                .parts(completedUploads.toList().sortedBy { part -> part.partNumber() })
+                .parts(completedUploads.toList().sortedBy(CompletedPart::partNumber))
                 .build())
             .build()
         s3Client.completeMultipartUpload(completeMultipartRequest)

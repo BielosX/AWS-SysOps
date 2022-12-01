@@ -40,7 +40,7 @@ resource "aws_instance" "demo-instances" {
   subnet_id = var.subnet-id
   user_data = var.user-data
   monitoring = var.detailed-monitoring
-  tags = {
+  tags = merge({
     Name: var.name
-  }
+  }, var.tags)
 }

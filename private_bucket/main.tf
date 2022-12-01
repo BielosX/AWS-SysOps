@@ -37,3 +37,10 @@ resource "aws_s3_bucket_policy" "bucket-policy" {
   bucket = aws_s3_bucket.bucket.id
   policy = data.aws_iam_policy_document.bucket-policy.json
 }
+
+resource "aws_s3_bucket_ownership_controls" "bucket-ownership" {
+  bucket = aws_s3_bucket.bucket.id
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}

@@ -6,6 +6,10 @@ output "public-subnet-id" {
   value = aws_subnet.public-subnet.id
 }
 
+output "public-subnet-az" {
+  value = aws_subnet.public-subnet.availability_zone
+}
+
 output "private-subnet-id" {
   value = aws_subnet.private-subnet.id
 }

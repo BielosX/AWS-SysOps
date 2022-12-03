@@ -114,8 +114,7 @@ module "instance" {
   user-data = templatefile("${path.module}/init.sh.tmpl", {
     file-system-id: aws_efs_file_system.file-system.id,
     access-point-id: local.access-points[count.index],
-    eip-addr: aws_eip.eip[count.index].public_ip,
-    write-enabled: count.index == 1 ? "true" : "false"
+    eip-addr: aws_eip.eip[count.index].public_ip
   })
 }
 

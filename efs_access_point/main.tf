@@ -123,3 +123,32 @@ resource "aws_eip_association" "eip-association" {
   allocation_id = aws_eip.eip[count.index].id
   instance_id = module.instance[count.index].instance-id
 }
+
+data "aws_iam_policy_document" "efs-policy" {
+  version = "2012-10-17"
+  statement {
+    effect = "Allow"
+    principals {
+      identifiers = [
+        module.instance[0].role-arn,
+        module.instance[1].role-arn
+      ]
+      type = "AWS"
+    }
+    actions = [
+      "elasticfilesystem:ClientWrite",
+      "elasticfilesystem:ClientMount"
+    ]
+    resources = [aws_efs_file_system.file-system.arn]
+    condition {
+      test = "Bool"
+      variable = "elasticfilesystem:AccessedViaMountTarget"
+      values = ["true"]
+    }
+  }
+}
+
+resource "aws_efs_file_system_policy" "efs-policy" {
+  file_system_id = aws_efs_file_system.file-system.id
+  policy = data.aws_iam_policy_document.efs-policy.json
+}

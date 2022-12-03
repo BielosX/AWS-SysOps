@@ -4,33 +4,28 @@ yum -y update
 yum -y install amazon-efs-utils
 yum -y install vsftpd
 
-mkdir /mnt/efs
-FSTAB_LINE="${file-system-id}:/ /mnt/efs efs _netdev,noresvport,tls,iam,accesspoint=${access-point-id} 0 0"
+mkdir -p /mnt/ftp/efs
+FSTAB_LINE="${file-system-id}:/ /mnt/ftp/efs efs _netdev,noresvport,tls,iam,accesspoint=${access-point-id} 0 0"
 echo "$FSTAB_LINE" >> /etc/fstab
 mount -a
-chmod 555 /mnt/efs
+chmod 555 /mnt/ftp
+chmod 777 /mnt/ftp/efs
 
 echo "vsftpd: ALL" >> /etc/hosts.allow
 
 cat <<EOT >> /etc/vsftpd/vsftpd.conf
+anon_upload_enable=YES
+anon_mkdir_write_enable=YES
+write_enable=YES
 anonymous_enable=YES
 no_anon_password=YES
-anon_root=/mnt/efs
+anon_root=/mnt/ftp
 pasv_min_port=10090
 pasv_max_port=10100
 pasv_enable=YES
 pasv_addr_resolve=YES
 pasv_address=${eip-addr}
 EOT
-
-if [ "${write-enabled}" = "true" ]; then
-cat <<EOT >> /etc/vsftpd/vsftpd.conf
-anon_upload_enable=YES
-anon_mkdir_write_enable=YES
-write_enable=YES
-EOT
-chmod 777 /mnt/efs
-fi
 
 systemctl enable vsftpd.service
 systemctl start vsftpd.service

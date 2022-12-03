@@ -129,10 +129,7 @@ data "aws_iam_policy_document" "efs-policy" {
   statement {
     effect = "Allow"
     principals {
-      identifiers = [
-        module.instance[0].role-arn,
-        module.instance[1].role-arn
-      ]
+      identifiers = module.instance[*].role-arn
       type = "AWS"
     }
     actions = [

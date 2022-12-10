@@ -1,0 +1,54 @@
+#!/bin/bash
+
+yum -y update
+amazon-linux-extras enable nginx1
+yum -y install nginx
+yum -y install amazon-cloudwatch-agent
+
+mkdir -p /var/log/nginx
+cat <<EOT >> /opt/agent.json
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": {
+          "file_path": "/var/log/nginx/access.log",
+          "log_group_name": "${log_group_name}",
+          "log_stream_name": "{instance_id}"
+        }
+      }
+    }
+  }
+}
+EOT
+
+chmod a+r /opt/agent.json
+
+mkdir -p /etc/nginx
+cat <<EOT > /etc/nginx/nginx.conf
+events {
+  worker_connections  4096;
+}
+
+http {
+  include    /etc/nginx/mime.types;
+
+  server {
+    listen 80;
+    access_log /var/log/nginx/access.log;
+
+    location /health {
+      return 200 'OK';
+    }
+
+    location / {
+      default_type text/html;
+      return 200 "<html><body><h1>Hello</h1></body></html>";
+    }
+  }
+}
+EOT
+
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/agent.json
+systemctl enable nginx.service
+systemctl start nginx.service

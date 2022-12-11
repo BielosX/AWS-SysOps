@@ -58,9 +58,30 @@ cat "$tmp_file"
 rm "$tmp_file"
 }
 
+function get_desired_capacity() {
+  desired_capacity=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "demo-asg" |
+    jq -r '.AutoScalingGroups[0].DesiredCapacity')
+}
+
+function scale_up() {
+  get_desired_capacity
+  new_capacity=$(( desired_capacity + 1))
+  aws autoscaling set-desired-capacity --auto-scaling-group-name "demo-asg" \
+    --desired-capacity "$new_capacity"
+}
+
+function scale_down() {
+  get_desired_capacity
+  new_capacity=$(( desired_capacity - 1))
+  aws autoscaling set-desired-capacity --auto-scaling-group-name "demo-asg" \
+    --desired-capacity "$new_capacity"
+}
+
 case "$1" in
   "deploy") deploy ;;
   "destroy") destroy ;;
   "test-start") test_start ;;
   "test-stop") test_stop ;;
+  "scale-up") scale_up ;;
+  "scale-down") scale_down ;;
 esac

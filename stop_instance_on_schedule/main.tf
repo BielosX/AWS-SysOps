@@ -87,6 +87,33 @@ resource "aws_cloudwatch_log_group" "nginx-access-logs" {
   name = "nginx-access-logs"
 }
 
+data "aws_iam_policy_document" "key-policy" {
+  version = "2012-10-17"
+  statement {
+    effect = "Allow"
+    actions = ["kms:*"]
+    principals {
+      identifiers = ["arn:aws:iam::${local.account-id}:root"]
+      type = "AWS"
+    }
+    resources = ["*"]
+  }
+  statement {
+    effect = "Allow"
+    actions = ["kms:*"]
+    principals {
+      identifiers = ["arn:aws:iam::${local.account-id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"]
+      type = "AWS"
+    }
+    resources = ["*"]
+  }
+}
+
+resource "aws_kms_key" "root-volume-key" {
+  deletion_window_in_days = 7
+  policy = data.aws_iam_policy_document.key-policy.json
+}
+
 resource "aws_launch_template" "demo-launch-template" {
   image_id = data.aws_ami.amazon-linux-2.id
   instance_type = "t3.nano"
@@ -96,6 +123,17 @@ resource "aws_launch_template" "demo-launch-template" {
   }))
   iam_instance_profile {
     arn = aws_iam_instance_profile.instance-profile.arn
+  }
+  // Encrypted root volume required for Hibernated AWS Warm Pool
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      delete_on_termination = true
+      volume_size = 8
+      encrypted = true
+      volume_type = "gp2"
+      kms_key_id = aws_kms_key.root-volume-key.arn
+    }
   }
 }
 
@@ -124,6 +162,7 @@ locals {
 }
 
 resource "aws_autoscaling_group" "demo-asg" {
+  name = "demo-asg"
   max_size = 4
   desired_capacity = 2
   min_size = 0
@@ -138,6 +177,14 @@ resource "aws_autoscaling_group" "demo-asg" {
     strategy = "Rolling"
     preferences {
       min_healthy_percentage = 99
+    }
+  }
+  warm_pool {
+    pool_state = "Hibernated"
+    min_size = 1
+    max_group_prepared_capacity = 4
+    instance_reuse_policy {
+      reuse_on_scale_in = true
     }
   }
   tag {

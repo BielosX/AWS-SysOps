@@ -11,11 +11,13 @@ cat <<EOT >> /opt/agent.json
   "logs": {
     "logs_collected": {
       "files": {
-        "collect_list": {
-          "file_path": "/var/log/nginx/access.log",
-          "log_group_name": "${log_group_name}",
-          "log_stream_name": "{instance_id}"
-        }
+        "collect_list": [
+          {
+            "file_path": "/var/log/nginx/access.log",
+            "log_group_name": "${log_group_name}",
+            "log_stream_name": "{instance_id}"
+          }
+        ]
       }
     }
   }
@@ -39,6 +41,14 @@ http {
 
     location /health {
       return 200 'OK';
+    }
+
+    location /users {
+      return 404 'Not Found';
+    }
+
+    location /books {
+      return 403 'Forbidden';
     }
 
     location / {

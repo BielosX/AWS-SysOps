@@ -136,6 +136,9 @@ resource "aws_autoscaling_group" "demo-asg" {
   }
   instance_refresh {
     strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 99
+    }
   }
   tag {
     propagate_at_launch = true
@@ -212,4 +215,32 @@ resource "aws_cloudwatch_event_target" "instances-start-target" {
 resource "aws_cloudwatch_event_target" "instances-stop-target" {
   arn  = aws_lambda_function.demo-lambda.arn
   rule = aws_cloudwatch_event_rule.instances-stop-schedule.name
+}
+
+locals {
+  metric-name = "4XXCount"
+  metric-namespace = "Nginx"
+}
+
+resource "aws_cloudwatch_log_metric_filter" "nginx-access-log-filter" {
+  log_group_name = aws_cloudwatch_log_group.nginx-access-logs.name
+  name = "4xx-access-log"
+  pattern = "[remote_addr, dash, remote_user, timestamp, request, status_code=4*, body_bytes, http_referer, http_user_agent]"
+  metric_transformation {
+    name = local.metric-name
+    namespace = local.metric-namespace
+    value = "1"
+    default_value = "0"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "too-many-4xx" {
+  alarm_name = "too-many-4xx"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 2
+  period = 60
+  threshold = "5"
+  statistic = "Sum"
+  metric_name = local.metric-name
+  namespace = local.metric-namespace
 }

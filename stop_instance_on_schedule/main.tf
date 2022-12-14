@@ -194,32 +194,6 @@ resource "aws_autoscaling_group" "demo-asg" {
   }
 }
 
-data "archive_file" "lambda-zip" {
-  source_file = "${path.module}/main.py"
-  output_path = "${path.module}/lambda.zip"
-  type = "zip"
-}
-
-data "aws_iam_policy_document" "lambda-assume-role" {
-  version = "2012-10-17"
-  statement {
-    effect = "Allow"
-    actions = ["sts:AssumeRole"]
-    principals {
-      identifiers = ["lambda.amazonaws.com"]
-      type        = "Service"
-    }
-  }
-}
-
-resource "aws_iam_role" "lambda-role" {
-  assume_role_policy = data.aws_iam_policy_document.lambda-assume-role.json
-  managed_policy_arns = [
-    "arn:aws:iam::aws:policy/AmazonEC2FullAccess",
-    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-  ]
-}
-
 resource "aws_cloudwatch_event_rule" "instances-start-schedule" {
   name = "instances-start-schedule"
   schedule_expression = "cron(0 8 ? * * *)"
@@ -230,37 +204,36 @@ resource "aws_cloudwatch_event_rule" "instances-stop-schedule" {
   schedule_expression = "cron(0 18 ? * * *)"
 }
 
-resource "aws_lambda_function" "demo-lambda" {
-  function_name = "mgmt-lambda"
-  role = aws_iam_role.lambda-role.arn
-  runtime = "python3.9"
-  handler = "main.handle"
-  filename = data.archive_file.lambda-zip.output_path
-  source_code_hash = data.archive_file.lambda-zip.output_base64sha256
-  timeout = 60
-  environment {
-    variables = {
-      START_RULE_ARN: aws_cloudwatch_event_rule.instances-start-schedule.arn,
-      STOP_RULE_ARN: aws_cloudwatch_event_rule.instances-stop-schedule.arn,
-      FILTERING_TAG: local.filtering-tag,
-      FILTERING_TAG_VALUE: local.filtering-tag-value
-    }
+module "demo-lambda" {
+  source = "../python_lambda"
+  environment-variables = {
+    START_RULE_ARN: aws_cloudwatch_event_rule.instances-start-schedule.arn,
+    STOP_RULE_ARN: aws_cloudwatch_event_rule.instances-stop-schedule.arn,
+    FILTERING_TAG: local.filtering-tag,
+    FILTERING_TAG_VALUE: local.filtering-tag-value
   }
+  file-path = "${path.module}/main.py"
+  function-name = "mgmt-lambda"
+  handler = "main.handle"
+  managed-policy-arns = [
+    "arn:aws:iam::aws:policy/AmazonEC2FullAccess",
+    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  ]
 }
 
 resource "aws_lambda_permission" "lambda-permission" {
   action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.demo-lambda.function_name
+  function_name = module.demo-lambda.function-name
   principal = "events.amazonaws.com"
 }
 
 resource "aws_cloudwatch_event_target" "instances-start-target" {
-  arn  = aws_lambda_function.demo-lambda.arn
+  arn  = module.demo-lambda.function-arn
   rule = aws_cloudwatch_event_rule.instances-start-schedule.name
 }
 
 resource "aws_cloudwatch_event_target" "instances-stop-target" {
-  arn  = aws_lambda_function.demo-lambda.arn
+  arn  = module.demo-lambda.function-arn
   rule = aws_cloudwatch_event_rule.instances-stop-schedule.name
 }
 

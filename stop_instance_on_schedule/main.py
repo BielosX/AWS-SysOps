@@ -26,9 +26,10 @@ def handle(event, context):
     instances = [instance for reservation in response['Reservations'] for instance in reservation['Instances']]
     for instance in instances:
         instance_id = instance['InstanceId']
+        state = instance['State']['Name']
         autoscaling_group = list(map(lambda tag: tag['Value'],
                                 filter(lambda tag: tag['Key'] == 'aws:autoscaling:groupName', instance['Tags'])))[0]
-        if caller == stop_rule_arn:
+        if caller == stop_rule_arn and state == 'running':
             asg.enter_standby(
                 InstanceIds=[instance_id],
                 AutoScalingGroupName=autoscaling_group,
@@ -37,7 +38,7 @@ def handle(event, context):
             ec2.stop_instances(
                 InstanceIds=[instance_id]
             )
-        elif caller == start_rule_arn:
+        elif caller == start_rule_arn and state == 'stopped':
             ec2.start_instances(
                 InstanceIds=[instance_id]
             )

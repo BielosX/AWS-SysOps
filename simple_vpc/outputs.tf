@@ -25,3 +25,11 @@ output "private-route-table-id" {
 output "vpc-cidr-block" {
   value = aws_vpc.vpc.cidr_block
 }
+
+output "public-subnet-arn" {
+  value = aws_subnet.public-subnet.arn
+}
+
+output "private-subnet-arn" {
+  value = aws_subnet.private-subnet.arn
+}

@@ -32,6 +32,40 @@ data "aws_iam_policy_document" "bucket-policy" {
       "${aws_s3_bucket.bucket.arn}/*"
     ]
   }
+  dynamic "statement" {
+    for_each = var.sse-s3-header-required ? [1] : []
+    content {
+      effect = "Deny"
+      actions = ["s3:PutObject"]
+      principals {
+        identifiers = ["*"]
+        type = "AWS"
+      }
+      resources = ["${aws_s3_bucket.bucket.arn}/*"]
+      condition {
+        test = "StringNotEquals"
+        variable = "s3:x-amz-server-side-encryption"
+        values = ["AES256"]
+      }
+    }
+  }
+  dynamic "statement" {
+    for_each = var.sse-kms-header-required ? [1] : []
+    content {
+      effect = "Deny"
+      actions = ["s3:PutObject"]
+      principals {
+        identifiers = ["*"]
+        type = "AWS"
+      }
+      resources = ["${aws_s3_bucket.bucket.arn}/*"]
+      condition {
+        test = "StringNotEquals"
+        variable = "s3:x-amz-server-side-encryption"
+        values = ["aws:kms"]
+      }
+    }
+  }
 }
 
 resource "aws_s3_bucket_policy" "bucket-policy" {

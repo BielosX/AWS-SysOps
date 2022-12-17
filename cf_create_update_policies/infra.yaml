@@ -1,0 +1,75 @@
+Resources:
+  RollingGroupTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+        InstanceType: "t3.nano"
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash
+              yum -y update
+              yum -y install aws-cfn-bootstrap
+              sleep 10
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource RollingAsg --region ${AWS::Region}
+  ReplacingGroupTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+        InstanceType: "t3.nano"
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash
+              yum -y update
+              yum -y install aws-cfn-bootstrap
+              sleep 10
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ReplacingAsg --region ${AWS::Region}
+  RollingAsg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    CreationPolicy:
+      AutoScalingCreationPolicy:
+        MinSuccessfulInstancesPercent: 100
+      ResourceSignal:
+        Count: 2
+        Timeout: PT5M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        MinInstancesInService: 1
+        MinSuccessfulInstancesPercent: 100
+        WaitOnResourceSignals: true
+        PauseTime: PT5M
+    Properties:
+      AvailabilityZones:
+        Fn::GetAZs:
+          Ref: "AWS::Region"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref RollingGroupTemplate
+        Version: !GetAtt RollingGroupTemplate.LatestVersionNumber
+      MinSize: 2
+      DesiredCapacity: 2
+      MaxSize: 4
+  ReplacingAsg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    CreationPolicy:
+      AutoScalingCreationPolicy:
+        MinSuccessfulInstancesPercent: 100
+      ResourceSignal:
+        Count: 2
+        Timeout: PT5M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: true
+    Properties:
+      AvailabilityZones:
+        Fn::GetAZs:
+          Ref: "AWS::Region"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ReplacingGroupTemplate
+        Version: !GetAtt ReplacingGroupTemplate.LatestVersionNumber
+      MinSize: 2
+      DesiredCapacity: 2
+      MaxSize: 4

@@ -1,10 +1,12 @@
 Resources:
-  RollingGroupTemplate:
+  DemoTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
         ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
         InstanceType: "t3.nano"
+        MetadataOptions:
+          InstanceMetadataTags: "enabled"
         UserData:
           Fn::Base64:
             !Sub |
@@ -12,21 +14,9 @@ Resources:
               yum -y update
               yum -y install aws-cfn-bootstrap
               sleep 10
-              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource RollingAsg --region ${AWS::Region}
-  ReplacingGroupTemplate:
-    Type: AWS::EC2::LaunchTemplate
-    Properties:
-      LaunchTemplateData:
-        ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
-        InstanceType: "t3.nano"
-        UserData:
-          Fn::Base64:
-            !Sub |
-              #!/bin/bash
-              yum -y update
-              yum -y install aws-cfn-bootstrap
-              sleep 10
-              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ReplacingAsg --region ${AWS::Region}
+              TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+              RESOURCE=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v "http://169.254.169.254/latest/meta-data/tags/instance/aws:cloudformation:logical-id")
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource "$RESOURCE" --region ${AWS::Region}
   RollingAsg:
     Type: AWS::AutoScaling::AutoScalingGroup
     CreationPolicy:
@@ -47,8 +37,8 @@ Resources:
         Fn::GetAZs:
           Ref: "AWS::Region"
       LaunchTemplate:
-        LaunchTemplateId: !Ref RollingGroupTemplate
-        Version: !GetAtt RollingGroupTemplate.LatestVersionNumber
+        LaunchTemplateId: !Ref DemoTemplate
+        Version: !GetAtt DemoTemplate.LatestVersionNumber
       MinSize: 2
       DesiredCapacity: 2
       MaxSize: 4
@@ -68,8 +58,8 @@ Resources:
         Fn::GetAZs:
           Ref: "AWS::Region"
       LaunchTemplate:
-        LaunchTemplateId: !Ref ReplacingGroupTemplate
-        Version: !GetAtt ReplacingGroupTemplate.LatestVersionNumber
+        LaunchTemplateId: !Ref DemoTemplate
+        Version: !GetAtt DemoTemplate.LatestVersionNumber
       MinSize: 2
       DesiredCapacity: 2
       MaxSize: 4

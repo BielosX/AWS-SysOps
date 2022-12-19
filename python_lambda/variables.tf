@@ -13,12 +13,20 @@ variable "handler" {
 
 variable "managed-policy-arns" {
   type = list(string)
+  default = []
 }
 
 variable "file-path" {
   type = string
+  default = ""
 }
 
 variable "environment-variables" {
   type = map(string)
+  default = {}
+}
+
+variable "code" {
+  type = string
+  default = ""
 }

@@ -15,8 +15,14 @@ resource "aws_iam_role" "lambda-role" {
   managed_policy_arns = var.managed-policy-arns
 }
 
+resource "local_file" "content" {
+  count = var.code == "" ? 0 : 1
+  filename = "${path.module}/main.py"
+  content = var.code
+}
+
 data "archive_file" "lambda-zip" {
-  source_file = var.file-path
+  source_file = var.code == "" ? var.file-path : local_file.content[0].filename
   output_path = "${path.module}/lambda.zip"
   type = "zip"
 }
@@ -28,7 +34,10 @@ resource "aws_lambda_function" "lambda" {
   role = aws_iam_role.lambda-role.arn
   filename = data.archive_file.lambda-zip.output_path
   source_code_hash = data.archive_file.lambda-zip.output_base64sha256
-  environment {
-    variables = var.environment-variables
+  dynamic "environment" {
+    for_each = length(var.environment-variables) > 0 ? [1] : []
+    content {
+      variables = var.environment-variables
+    }
   }
 }

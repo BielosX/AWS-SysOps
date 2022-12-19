@@ -5,3 +5,7 @@ output "function-name" {
 output "function-arn" {
   value = aws_lambda_function.lambda.arn
 }
+
+output "invoke-arn" {
+  value = aws_lambda_function.lambda.invoke_arn
+}

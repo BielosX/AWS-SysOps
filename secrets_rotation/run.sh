@@ -10,12 +10,12 @@ function deploy() {
 }
 
 function get_password() {
-  password=$( aws secretsmanager get-secret-value --secret-id "/rds/demo-cluster/master-password" \
+  password=$( aws secretsmanager get-secret-value --secret-id "$SECRET_ID" \
     | jq -r '.SecretString')
 }
 
 function get_endpoint() {
-  endpoint=$(aws rds describe-db-clusters --db-cluster-identifier demo-cluster \
+  endpoint=$(aws rds describe-db-clusters --db-cluster-identifier "$CLUSTER_ID" \
     | jq -r '.DBClusters[0].Endpoint')
 }
 

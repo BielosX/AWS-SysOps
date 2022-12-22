@@ -9,3 +9,7 @@ output "function-arn" {
 output "invoke-arn" {
   value = aws_lambda_function.lambda.invoke_arn
 }
+
+output "role-name" {
+  value = aws_iam_role.lambda-role.name
+}

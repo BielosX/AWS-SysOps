@@ -12,7 +12,12 @@ data "aws_iam_policy_document" "lambda-assume-role" {
 
 resource "aws_iam_role" "lambda-role" {
   assume_role_policy = data.aws_iam_policy_document.lambda-assume-role.json
-  managed_policy_arns = var.managed-policy-arns
+}
+
+resource "aws_iam_role_policy_attachment" "managed-policy-attachment" {
+  for_each = toset(var.managed-policy-arns)
+  policy_arn = each.key
+  role = aws_iam_role.lambda-role.name
 }
 
 resource "local_file" "content" {

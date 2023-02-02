@@ -33,3 +33,8 @@ variable "tags" {
   type = map(string)
   default = {}
 }
+
+variable "eip" {
+  type = bool
+  default = false
+}

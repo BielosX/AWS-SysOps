@@ -32,7 +32,7 @@ resource "aws_iam_instance_profile" "instance-profile" {
   role = aws_iam_role.instance-role.id
 }
 
-resource "aws_instance" "demo-instances" {
+resource "aws_instance" "demo-instance" {
   ami = data.aws_ami.amazon-linux-2.id
   instance_type = var.instance-type
   iam_instance_profile = aws_iam_instance_profile.instance-profile.id
@@ -43,4 +43,10 @@ resource "aws_instance" "demo-instances" {
   tags = merge({
     Name: var.name
   }, var.tags)
+}
+
+resource "aws_eip" "eip" {
+  count = var.eip ? 1 : 0
+  vpc = true
+  instance = aws_instance.demo-instance.id
 }

@@ -38,3 +38,8 @@ variable "eip" {
   type = bool
   default = false
 }
+
+variable "private-ip" {
+  type = string
+  default = null
+}

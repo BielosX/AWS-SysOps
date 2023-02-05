@@ -14,6 +14,6 @@ output "private-ip" {
   value = aws_instance.demo-instance.private_ip
 }
 
-output "eip-private-ip" {
-  value = var.eip ? aws_eip.eip[0].private_ip : null
+output "eip-public-ip" {
+  value = var.eip ? aws_eip.eip[0].public_ip : null
 }

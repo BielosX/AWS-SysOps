@@ -1,5 +1,11 @@
 {
   "metrics": {
+    "namespace": "statsd-demo",
+    "append_dimensions": {
+      "InstanceId": "${aws:InstanceId}"
+    },
+    "aggregation_dimensions" : [["InstanceId"]],
+    "force_flush_interval" : 30,
     "metrics_collected": {
       "statsd": {
         "service_address": ":8125",

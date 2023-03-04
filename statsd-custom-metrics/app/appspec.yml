@@ -1,0 +1,15 @@
+version: 0.0
+os: linux
+files:
+  - source: app.service
+    destination: /usr/lib/systemd/system
+  - source: app.jar
+    destination: /opt/app
+file_exists_behavior: OVERWRITE
+hooks:
+  BeforeInstall:
+    - location: scripts/create-dir.sh
+      timeout: 60
+  AfterInstall:
+    - location: scripts/start.sh
+      timeout: 60

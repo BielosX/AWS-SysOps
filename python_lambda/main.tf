@@ -39,6 +39,7 @@ resource "aws_lambda_function" "lambda" {
   role = aws_iam_role.lambda-role.arn
   filename = data.archive_file.lambda-zip.output_path
   source_code_hash = data.archive_file.lambda-zip.output_base64sha256
+  timeout = var.timeout
   dynamic "environment" {
     for_each = length(var.environment-variables) > 0 ? [1] : []
     content {

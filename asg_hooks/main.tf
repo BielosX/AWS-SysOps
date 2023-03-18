@@ -80,3 +80,47 @@ resource "aws_autoscaling_lifecycle_hook" "terminate-hook" {
   notification_target_arn = aws_sns_topic.ec2-terminating-notification.arn
   role_arn = aws_iam_role.hook-role.arn
 }
+
+resource "aws_autoscaling_lifecycle_hook" "launch-hook" {
+  name = "notify-on-launch"
+  autoscaling_group_name = aws_autoscaling_group.asg.name
+  lifecycle_transition  = "autoscaling:EC2_INSTANCE_LAUNCHING"
+  default_result = "ABANDON"
+  heartbeat_timeout = 60 * 5
+}
+
+resource "aws_cloudwatch_event_rule" "on-ec2-start" {
+  name = "on-ec2-start"
+  event_pattern = jsonencode({
+    "source": [ "aws.autoscaling" ],
+    "detail-type": [ "EC2 Instance-launch Lifecycle Action" ],
+    "detail": {
+      "AutoScalingGroupName": [aws_autoscaling_group.asg.name]
+    }
+  })
+}
+
+module "lambda" {
+  source = "../python_lambda"
+  function-name = "asg-start-hook-handler"
+  handler = "main.handle"
+  file-path = "${path.module}/main.py"
+  timeout = 60 * 5
+  managed-policy-arns = [
+    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+    "arn:aws:iam::aws:policy/AutoScalingFullAccess",
+    "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
+  ]
+}
+
+resource "aws_lambda_permission" "invoke-permission" {
+  action = "lambda:InvokeFunction"
+  function_name = module.lambda.function-name
+  principal = "events.amazonaws.com"
+  source_arn = aws_cloudwatch_event_rule.on-ec2-start.arn
+}
+
+resource "aws_cloudwatch_event_target" "lambda-target" {
+  arn = module.lambda.function-arn
+  rule = aws_cloudwatch_event_rule.on-ec2-start.name
+}

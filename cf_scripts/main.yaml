@@ -1,0 +1,83 @@
+Resources:
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Instance Security Group"
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: 80
+          ToPort: 80
+          IpProtocol: "tcp"
+        - CidrIp: "0.0.0.0/0"
+          FromPort: 22
+          ToPort: 22
+          IpProtocol: "tcp"
+  WaitHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+  WaitForInstance:
+    Type: AWS::CloudFormation::WaitCondition
+    Properties:
+      Count: 1
+      Timeout: 600
+      Handle: !Ref WaitHandle
+  DemoInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              httpd: []
+              jq: []
+          files:
+            "/var/www/html/index.html":
+              content: |
+                <html>
+                  <body>
+                    <h1>Hello from EC2 Instance!</h1>
+                  </body>
+                </html>
+            "/etc/cfn/cfn-hup.conf":
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                interval=1
+              mode: "000400"
+              owner: "root"
+              group: "root"
+            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.DemoInstance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource DemoInstance --region ${AWS::Region}
+              mode: "000400"
+              owner: "root"
+              group: "root"
+          commands:
+            enableHttpd:
+              command: "systemctl enable httpd"
+            startHttpd:
+              command: "systemctl start httpd"
+    Properties:
+      InstanceType: "t3.nano"
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      SecurityGroups:
+        - !Ref SecurityGroup
+      Tags:
+        - Key: "Name"
+          Value: !Sub "demo-instance"
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+              yum -y update
+              yum -y install aws-cfn-bootstrap 
+              /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource DemoInstance --region ${AWS::Region}
+              /opt/aws/bin/cfn-hup
+              /opt/aws/bin/cfn-signal -e $? '${WaitHandle}'

@@ -42,8 +42,35 @@ EOM
   aws ec2 request-spot-fleet --spot-fleet-request-config "$request"
 }
 
+function launch_spot_instance() {
+  to=$(date -u -v "+5M" "+%Y-%m-%dT%H:%M:%SZ")
+  from=$(date -u "+%Y-%m-%dT%H:%M:%SZ")
+  echo "From ${from} UTC to ${to} UTC"
+
+read -r -d '' market_options << EOM
+{
+  "MarketType": "spot",
+  "SpotOptions": {
+    "SpotInstanceType": "persistent",
+    "ValidUntil": "${to}",
+    "InstanceInterruptionBehavior": "stop"
+  }
+}
+EOM
+read -r -d '' launch_template << EOM
+{
+  "LaunchTemplateName": "spot-instance-launch-template",
+  "Version": "\$Latest"
+}
+EOM
+  aws ec2 run-instances \
+    --instance-market-options "$market_options" \
+    --launch-template "$launch_template"
+}
+
 case "$1" in
   "deploy") deploy ;;
   "destroy") destroy ;;
-  "launch") launch_spot_fleet ;;
+  "launch-fleet") launch_spot_fleet ;;
+  "launch-instance") launch_spot_instance ;;
 esac

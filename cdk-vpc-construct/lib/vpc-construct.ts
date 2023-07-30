@@ -1,6 +1,7 @@
 import {Construct, DependencyGroup, IDependable} from 'constructs';
 import * as ec2 from "aws-cdk-lib/aws-ec2";
-import {CfnResource, Fn, RemovalPolicy, ResourceEnvironment, Stack} from "aws-cdk-lib";
+import {ISubnet, SubnetType} from "aws-cdk-lib/aws-ec2";
+import {CfnResource, Fn, IResource, RemovalPolicy, ResourceEnvironment, Stack} from "aws-cdk-lib";
 
 export type VpcConstructProps = {
     availabilityZones?: string[],
@@ -22,6 +23,7 @@ export class VpcConstruct extends Construct implements ec2.IVpc {
     readonly vpcId: string;
 
     readonly cfnResources: CfnResource[];
+    readonly resources: IResource[];
 
     constructor(scope: Construct, id: string, props: VpcConstructProps) {
         super(scope, id);
@@ -39,6 +41,7 @@ export class VpcConstruct extends Construct implements ec2.IVpc {
         this.isolatedSubnets = [];
         this.privateSubnets = [];
         this.publicSubnets = [];
+        this.resources = [];
         this.stack = Stack.of(this);
         const defaultAZsTokens = Fn.getAzs(this.stack.region);
         const defaultAZs: string[] = Array.from(Array(2).keys())
@@ -166,11 +169,30 @@ export class VpcConstruct extends Construct implements ec2.IVpc {
     }
 
     addGatewayEndpoint(id: string, options: ec2.GatewayVpcEndpointOptions): ec2.GatewayVpcEndpoint {
-        throw new Error();
+        const endpoint = new ec2.GatewayVpcEndpoint(this, `${id}GatewayEndpoint`,{
+            vpc: this,
+            service: {
+                name: options.service.name
+            }
+        });
+        this.resources.push(endpoint);
+        return endpoint;
     }
 
     addInterfaceEndpoint(id: string, options: ec2.InterfaceVpcEndpointOptions): ec2.InterfaceVpcEndpoint {
-        throw new Error();
+        const endpoint = new ec2.InterfaceVpcEndpoint(this, `${id}InterfaceEndpoint`, {
+            vpc: this,
+            service: {
+                name: options.service.name,
+                port: options.service.port
+            },
+            subnets: options.subnets,
+            securityGroups: options.securityGroups,
+            open: options.open,
+            lookupSupportedAzs: options.lookupSupportedAzs
+        });
+        this.resources.push(endpoint);
+        return endpoint;
     }
 
     addVpnConnection(id: string, options: ec2.VpnConnectionOptions): ec2.VpnConnection {
@@ -179,12 +201,44 @@ export class VpcConstruct extends Construct implements ec2.IVpc {
 
     applyRemovalPolicy(policy: RemovalPolicy): void {
         this.cfnResources.forEach(resource => resource.applyRemovalPolicy(policy));
+        this.resources.forEach(resource => resource.applyRemovalPolicy(policy));
     }
 
     enableVpnGateway(options: ec2.EnableVpnGatewayOptions): void {
     }
 
     selectSubnets(selection?: ec2.SubnetSelection): ec2.SelectedSubnets {
-        throw new Error();
+        let subnets: ec2.ISubnet[] = this.publicSubnets.concat(this.privateSubnets);
+        if (selection?.subnetType === SubnetType.PRIVATE_WITH_EGRESS) {
+            subnets = subnets.filter(subnet => this.privateSubnets.includes(subnet));
+        }
+        if (selection?.subnetType === SubnetType.PUBLIC) {
+            subnets = subnets.filter(subnet => this.publicSubnets.includes(subnet));
+        }
+        if (selection?.subnets) {
+            subnets = subnets.filter(subnet => selection.subnets?.includes(subnet));
+        }
+        if (selection?.availabilityZones) {
+            subnets = subnets.filter(subnet => selection.availabilityZones?.includes(subnet.availabilityZone));
+        }
+        if (selection?.onePerAz) {
+            const azToSubnet = new Map<string, ISubnet>();
+            for (const subnet of subnets) {
+                if (!azToSubnet.has(subnet.availabilityZone)) {
+                    azToSubnet.set(subnet.availabilityZone, subnet);
+                }
+            }
+            subnets = Array.from(azToSubnet.values());
+        }
+        const hasPublic = subnets.map(subnet => this.publicSubnets.includes(subnet))
+            .filter(answer => answer).length > 0;
+        return {
+            availabilityZones: subnets.map(subnet => subnet.availabilityZone),
+            internetConnectivityEstablished: true,
+            subnetIds: subnets.map(subnet => subnet.subnetId),
+            subnets: subnets,
+            hasPublic,
+            isPendingLookup: false
+        };
     }
 }

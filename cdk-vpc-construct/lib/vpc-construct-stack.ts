@@ -3,7 +3,7 @@ import {Construct} from 'constructs';
 import {VpcConstruct} from "./vpc-construct";
 import {GatewayVpcEndpointAwsService, InterfaceVpcEndpointAwsService, SubnetType} from "aws-cdk-lib/aws-ec2";
 
-export class CdkVpcConstructStack extends cdk.Stack {
+export class VpcConstructStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
     const vpc = new VpcConstruct(this, 'Vpc', {

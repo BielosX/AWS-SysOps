@@ -17,10 +17,12 @@ function deploy() {
 }
 
 function destroy() {
+  temp_path=$(mktemp -d)
   pushd infra || exit
   cdk destroy --all \
-    -c "jarPath=temp" || exit
+    -c "jarPath=$temp_path" || exit
   popd || exit
+  rm -rf "$temp_path"
 }
 
 function create_log_events() {

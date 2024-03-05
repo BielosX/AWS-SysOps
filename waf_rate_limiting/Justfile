@@ -1,0 +1,8 @@
+deploy:
+    tofu init && tofu apply -auto-approve
+
+destroy:
+    tofu destroy -auto-approve
+
+format:
+    tofu fmt -recursive .

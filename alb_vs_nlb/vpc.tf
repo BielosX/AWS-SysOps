@@ -1,15 +1,3 @@
-variable "cidr_block" {
-  type = string
-}
-
-variable "availability_zones" {
-  type = list(string)
-}
-
-variable "subnet_bits" {
-  type = number
-}
-
 locals {
   az_list_len = length(var.availability_zones)
 }
@@ -25,6 +13,7 @@ resource "aws_subnet" "public_subnet" {
   vpc_id                  = aws_vpc.vpc.id
   map_public_ip_on_launch = true
   cidr_block              = cidrsubnet(var.cidr_block, var.subnet_bits, count.index + 1)
+  availability_zone       = var.availability_zones[count.index]
   tags = {
     Name : "public-subnet"
   }
@@ -35,6 +24,7 @@ resource "aws_subnet" "private_subnet" {
   vpc_id                  = aws_vpc.vpc.id
   map_public_ip_on_launch = false
   cidr_block              = cidrsubnet(var.cidr_block, var.subnet_bits, count.index + 1 + local.az_list_len)
+  availability_zone       = var.availability_zones[count.index]
   tags = {
     Name : "private-subnet"
   }

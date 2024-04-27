@@ -1,0 +1,8 @@
+format:
+    tofu fmt -recursive {{ justfile_directory() }}
+
+deploy:
+    tofu init && tofu apply -auto-approve
+
+destroy:
+    tofu destroy -auto-approve

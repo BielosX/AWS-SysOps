@@ -6,3 +6,6 @@ deploy:
 
 destroy:
     tofu destroy -auto-approve
+
+format-python:
+    black {{ justfile_directory() }}

@@ -39,6 +39,7 @@ resource "aws_autoscaling_group" "asg" {
   }
   target_group_arns = [
     aws_lb_target_group.application_lb_target_group.arn,
-    aws_lb_target_group.network_lb_target_group.arn
+    aws_lb_target_group.network_lb_target_group.arn,
+    aws_lb_target_group.duration_based_stickiness_group.arn
   ]
 }

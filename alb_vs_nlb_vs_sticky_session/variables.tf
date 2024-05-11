@@ -17,3 +17,7 @@ variable "availability_zones" {
 variable "subnet_bits" {
   type = number
 }
+
+variable "app_port" {
+  type = number
+}

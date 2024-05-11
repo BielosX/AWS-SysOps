@@ -1,0 +1,59 @@
+- name: Install App
+  hosts: all
+  become: true
+  become_user: root
+  vars:
+    ansible_connection: aws_ssm
+    ansible_aws_ssm_region: eu-west-1
+    ansible_aws_ssm_plugin: /usr/bin/session-manager-plugin
+    nodejs_version: "v22.1.0"
+
+  tasks:
+    - name: Wait for connection
+      wait_for_connection:
+    - name: Create app user
+      ansible.builtin.user:
+        name: app
+        create_home: true
+        password_lock: true
+    - name: Create install directory
+      ansible.builtin.file:
+        path: "/opt/nodejs/{{ nodejs_version }}"
+        state: directory
+        mode: '0755'
+    - name: Download Node.js
+      ansible.builtin.get_url:
+        url: "https://nodejs.org/dist/{{ nodejs_version }}/node-{{ nodejs_version }}-linux-arm64.tar.xz"
+        dest: /tmp/downloaded.tar.gz
+    - name: "Extract files to /opt/nodejs"
+      ansible.builtin.unarchive:
+        src: /tmp/downloaded.tar.gz
+        remote_src: true
+        dest: "/opt/nodejs/{{ nodejs_version }}"
+        extra_opts: ['--strip-components=1', '--show-stored-names']
+    - name: Remove temp file
+      ansible.builtin.file:
+        path: /tmp/downloaded.tar.gz
+        state: absent
+    - name: Copy app file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/dist/app.js"
+        dest: /home/app/app.js
+        owner: app
+        mode: '0744'
+    - name: Copy systemd service file
+      vars:
+        name: app
+        user: app
+        exec: "/opt/nodejs/{{ nodejs_version }}/bin/node /home/app/app.js"
+      ansible.builtin.template:
+        src: template.service
+        dest: "/etc/systemd/system/app.service"
+        owner: root
+        mode: "644"
+    - name: "Start and enable app service"
+      ansible.builtin.systemd_service:
+        state: "restarted"
+        name: "app"
+        enabled: true
+        daemon_reload: true

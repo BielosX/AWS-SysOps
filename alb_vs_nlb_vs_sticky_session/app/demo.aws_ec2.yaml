@@ -1,0 +1,8 @@
+plugin: amazon.aws.aws_ec2
+regions:
+  - eu-west-1
+hostnames:
+  - instance-id
+include_filters:
+  - tag:ansible-managed:
+      - 'true'

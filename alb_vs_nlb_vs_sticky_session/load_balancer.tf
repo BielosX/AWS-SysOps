@@ -61,12 +61,30 @@ resource "aws_lb_target_group" "duration_based_stickiness_group" {
   }
 }
 
+resource "aws_lb_target_group" "application_based_stickiness_group" {
+  vpc_id   = aws_vpc.vpc.id
+  protocol = "HTTP"
+  port     = 8080
+
+  health_check {
+    path = "/health"
+    interval = 10
+    timeout = 5
+  }
+
+  stickiness {
+    type            = "app_cookie"
+    cookie_name     = "SessionId"
+    cookie_duration = 60 * 5
+  }
+}
+
 resource "aws_lb_listener_rule" "duration_based_stickiness" {
   listener_arn = aws_lb_listener.application_lb_listener.arn
 
   condition {
     query_string {
-      key = "sticky"
+      key   = "sticky"
       value = "duration"
     }
   }
@@ -74,5 +92,21 @@ resource "aws_lb_listener_rule" "duration_based_stickiness" {
   action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.duration_based_stickiness_group.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "application_based_stickiness" {
+  listener_arn = aws_lb_listener.application_lb_listener.arn
+
+  condition {
+    query_string {
+      key   = "sticky"
+      value = "application"
+    }
+  }
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.application_based_stickiness_group.arn
   }
 }

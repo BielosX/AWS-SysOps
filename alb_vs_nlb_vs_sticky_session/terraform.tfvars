@@ -4,3 +4,4 @@ availability_zones = ["eu-west-1a", "eu-west-1b"]
 subnet_bits        = 8
 image_id           = "ami-0ecebaf1ef5c79da0"
 http_port          = 80
+app_port           = 8080

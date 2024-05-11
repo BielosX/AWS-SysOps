@@ -1,0 +1,14 @@
+[Unit]
+Description={{ name }} Service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=30
+User={{ user }}
+ExecStart={{ exec }}
+
+[Install]
+WantedBy=multi-user.target

@@ -7,6 +7,7 @@
     ansible_aws_ssm_region: eu-west-1
     ansible_aws_ssm_plugin: /usr/bin/session-manager-plugin
     nodejs_version: "v22.1.0"
+    architecture: "arm64"
 
   tasks:
     - name: Wait for connection
@@ -23,7 +24,7 @@
         mode: '0755'
     - name: Download Node.js
       ansible.builtin.get_url:
-        url: "https://nodejs.org/dist/{{ nodejs_version }}/node-{{ nodejs_version }}-linux-arm64.tar.xz"
+        url: "https://nodejs.org/dist/{{ nodejs_version }}/node-{{ nodejs_version }}-linux-{{ architecture }}.tar.xz"
         dest: /tmp/downloaded.tar.gz
     - name: "Extract files to /opt/nodejs"
       ansible.builtin.unarchive:

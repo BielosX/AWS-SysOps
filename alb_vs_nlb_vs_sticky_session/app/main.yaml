@@ -47,7 +47,7 @@
         user: app
         exec: "/opt/nodejs/{{ nodejs_version }}/bin/node /home/app/app.js"
       ansible.builtin.template:
-        src: template.service
+        src: "{{ playbook_dir }}/template.service"
         dest: "/etc/systemd/system/app.service"
         owner: root
         mode: "644"

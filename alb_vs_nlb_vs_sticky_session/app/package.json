@@ -15,6 +15,7 @@
     "body-parser": "^1.20.2",
     "cookie-parser": "^1.4.6",
     "express": "^4.19.2",
+    "joi": "^17.13.1",
     "uuid": "^9.0.1",
     "winston": "^3.13.0"
   },

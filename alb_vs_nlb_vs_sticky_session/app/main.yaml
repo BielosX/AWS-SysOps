@@ -5,7 +5,7 @@
   vars:
     ansible_connection: aws_ssm
     ansible_aws_ssm_region: eu-west-1
-    ansible_aws_ssm_plugin: /usr/bin/session-manager-plugin
+    ansible_aws_ssm_plugin: "{{ lookup('ansible.builtin.env', 'SSM_PLUGIN', default='/usr/bin/session-manager-plugin') }}"
     nodejs_version: "v22.1.0"
     architecture: "arm64"
 

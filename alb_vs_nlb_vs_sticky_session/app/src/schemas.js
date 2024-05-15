@@ -2,7 +2,9 @@ import Joi from 'joi'
 
 export const validateSchema = (schema) => {
     return (req, res, next) => {
-        const { error } = schema.validate(req.body)
+        const {
+            error
+        } = schema.validate(req.body)
         if (error === undefined) {
             next()
         } else {

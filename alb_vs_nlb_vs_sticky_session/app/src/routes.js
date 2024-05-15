@@ -1,8 +1,17 @@
 import express from 'express'
-import { v4 as UUIDv4 } from 'uuid'
-import {logger} from "./logger"
-import {metadata} from "./metadata"
-import {sessionSchema, validateSchema} from "./schemas";
+import {
+    v4 as UUIDv4
+} from 'uuid'
+import {
+    logger
+} from "./logger"
+import {
+    metadata
+} from "./metadata"
+import {
+    sessionSchema,
+    validateSchema
+} from "./schemas";
 
 export const router = express.Router()
 
@@ -23,7 +32,10 @@ router.get('/info', (req, res) => {
             logger.info(`Session info for SessionId ${sessionId} not found`)
         }
     }
-    res.send({...sessionInfo, ...metadata})
+    res.send({
+        ...sessionInfo,
+        ...metadata
+    })
 })
 
 router.post('/session', validateSchema(sessionSchema), (req, res) => {

@@ -3,7 +3,7 @@ import cookieParser from 'cookie-parser'
 import bodyParser from 'body-parser'
 import {
     router
-} from "./routes";
+} from "./routes"
 
 const app = express()
 app.use(cookieParser())

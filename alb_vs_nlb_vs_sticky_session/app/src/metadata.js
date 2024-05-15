@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "axios"
 
 const METADATA_URL = 'http://169.254.169.254/latest'
 const TOKEN_TTL_HEADER = 'X-aws-ec2-metadata-token-ttl-seconds'

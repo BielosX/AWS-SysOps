@@ -11,7 +11,7 @@ import {
 import {
     sessionSchema,
     validateSchema
-} from "./schemas";
+} from "./schemas"
 
 export const router = express.Router()
 

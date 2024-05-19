@@ -67,9 +67,9 @@ resource "aws_lb_target_group" "application_based_stickiness_group" {
   port     = 8080
 
   health_check {
-    path = "/health"
+    path     = "/health"
     interval = 10
-    timeout = 5
+    timeout  = 5
   }
 
   stickiness {

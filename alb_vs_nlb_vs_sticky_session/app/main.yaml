@@ -26,11 +26,12 @@
         path: "/opt/nodejs/{{ nodejs_version }}"
         state: directory
         mode: '0755'
-      when: not stat_result.stat.exists
     - name: Download Node.js
-      ansible.builtin.get_url:
-        url: "https://nodejs.org/dist/{{ nodejs_version }}/node-{{ nodejs_version }}-linux-{{ architecture }}.tar.xz"
+      amazon.aws.s3_object:
+        bucket: "{{ packages_bucket }}"
+        object: "node-{{ nodejs_version }}-linux-{{ architecture }}.tar.xz"
         dest: /tmp/downloaded.tar.gz
+        mode: get
       when: not stat_result.stat.exists
     - name: "Extract files to /opt/nodejs"
       ansible.builtin.unarchive:

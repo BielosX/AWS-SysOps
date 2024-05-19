@@ -11,8 +11,11 @@ data "aws_iam_policy_document" "ec2_assume_role" {
 }
 
 resource "aws_iam_role" "instance_role" {
-  assume_role_policy  = data.aws_iam_policy_document.ec2_assume_role.json
-  managed_policy_arns = ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
+  managed_policy_arns = [
+    "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+    "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+  ]
 }
 
 resource "aws_iam_instance_profile" "instance_profile" {

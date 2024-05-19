@@ -1,5 +1,8 @@
 aws-account-id := `aws sts get-caller-identity | jq -r '.Account'`
 bucket-name := "ansible-eu-west-1-" + aws-account-id
+packages-bucket := "packages-eu-west-1-" + aws-account-id
+nodejs-version := "v22.1.0"
+nodejs-file-name := "node-" + nodejs-version + "-linux-arm64.tar.xz"
 
 format:
     tofu fmt -recursive {{ justfile_directory() }}
@@ -13,6 +16,15 @@ destroy:
 format-python:
     black {{ justfile_directory() }}
 
+deploy-packages:
+    wget -P /tmp https://nodejs.org/dist/{{ nodejs-version }}/{{ nodejs-file-name }}
+    aws s3 cp /tmp/{{ nodejs-file-name }} s3://{{ packages-bucket }}/{{ nodejs-file-name }}
+
 deploy-app:
+    npm --prefix app install
     npm --prefix app run build
-    ansible-playbook {{ justfile_directory() }}/app/main.yaml -i {{ justfile_directory() }}/app/demo.aws_ec2.yaml --extra-vars "ansible_aws_ssm_bucket_name={{ bucket-name }}"
+    ansible-playbook {{ justfile_directory() }}/app/main.yaml -i {{ justfile_directory() }}/app/demo.aws_ec2.yaml \
+        --extra-vars "ansible_aws_ssm_bucket_name={{ bucket-name }} packages_bucket={{ packages-bucket }}"
+
+show-inventory:
+    ansible-inventory -i {{ justfile_directory() }}/app/demo.aws_ec2.yaml --graph

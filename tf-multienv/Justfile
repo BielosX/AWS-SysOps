@@ -1,0 +1,5 @@
+deploy environment:
+    tofu init && tofu apply -auto-approve -var-file='envs/{{environment}}.tfvars'
+
+destroy environment:
+    tofu destroy -auto-approve -var-file='envs/{{environment}}.tfvars'
